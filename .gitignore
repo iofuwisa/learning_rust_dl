@@ -1,2 +1,5 @@
 /target
 /data
+/pkg
+/www/node_modules
+/www/dist
