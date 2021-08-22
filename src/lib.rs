@@ -1,4 +1,5 @@
 mod utils;
+pub mod deep_learning;
 
 use wasm_bindgen::prelude::*;
 
@@ -17,3 +18,4 @@ extern {
 pub fn greet() {
     alert("Hello, wasm-game-of-life!");
 }
+

@@ -1,7 +1,9 @@
 use ndarray::prelude::{
+    Array,
+    Array1,
+    Array2,
     arr1,
-    arr2,
-    s
+    s,
 };
 
 use crate::deep_learning::activation_functions::{
@@ -10,53 +12,60 @@ use crate::deep_learning::activation_functions::{
     softmax_array
 };
 
-pub fn calc(x1: f64, x2: f64) {
-    let x = arr1(&[x1, x2]);
-    let w1 = arr2(&[
-        [0.1, 0.3, 0.5],
-        [0.2, 0.4, 0.6]
-    ]);
-    let b1 = arr1(&[0.1, 0.2, 0.3]);
-    let w2 = arr2(&[
-        [0.1, 0.4],
-        [0.2, 0.5],
-        [0.3, 0.6]
-    ]);
-    let b2 = arr1(&[0.1, 0.2]);
-    let w3 = arr2(&[
-        [0.1, 0.3],
-        [0.2, 0.4]
-    ]);
-    let b3 = arr1(&[0.1, 0.2]);
+use crate::deep_learning::mnist::*;
 
-    let xw1 = x.dot(&w1) + b1;
-    let mut z1: Vec<f64> = Vec::new();
-    if let Some(val) = xw1.slice(s![0..;1]).as_slice() {
-        sigmoid_array(val, &mut z1);
-    } else {
-        println!("error1");
-        return;
+pub struct NeuralNetwork {
+    input: Vec<f64>,
+    hidden_layors: Vec<NeuralNetworkLayor>,
+    output_layor: NeuralNetworkLayor,
+}
+impl NeuralNetwork {
+    pub fn new(input: &Vec<f64>) -> NeuralNetwork {
+        let input_num = input.len();
+        let hidden1_num = 50;
+        let hidden2_num = 100;
+        let output_num = 10;
+
+        let hidden_layors = vec![
+            NeuralNetworkLayor::new(input_num as u32, hidden1_num, Box::new(sigmoid_array)),
+            NeuralNetworkLayor::new(hidden1_num, hidden2_num, Box::new(sigmoid_array)),
+        ];
+
+        let output_layor = NeuralNetworkLayor::new(hidden2_num, output_num, Box::new(identity_array));
+
+        return NeuralNetwork {
+            input: input.clone(),
+            hidden_layors: hidden_layors,
+            output_layor: output_layor,
+        };
+
+    }
+}
+
+
+pub struct NeuralNetworkLayor {
+    weight: Array2<f64>,
+    bias: Array2<f64>,
+    activation_function: Box<dyn Fn(&Array1<f64>) -> Array1<f64>>,
+}
+impl NeuralNetworkLayor {
+    pub fn new(input_len: u32, neuron_len: u32, activation_function: Box<dyn Fn(&Array1<f64>) -> Array1<f64>>) -> NeuralNetworkLayor {
+        let weight: Array2<f64> = Array2::zeros((input_len as usize, neuron_len as usize));
+        let bias: Array2<f64> = Array2::zeros((input_len as usize, neuron_len as usize));
+
+        return NeuralNetworkLayor {
+            weight: weight,
+            bias: bias,
+            activation_function: activation_function,
+        };
+    }
+
+    pub fn forward(&self, x: Array1<f64>) -> Array1<f64> {
+        let a = x.dot(&self.weight) + &self.bias;
+        let a = arr1(&(a.as_slice().unwrap()));
+
+        let y = &(self.activation_function.as_ref())(&(a));
+        return y.clone();
     }
     
-    let x2 = arr1(&[z1[0], z1[1], z1[2]]);
-    let x2w2 = x2.dot(&w2) + b2;
-    let mut z2: Vec<f64> = Vec::new();
-    if let Some(val) = x2w2.slice(s![0..;1]).as_slice() {
-        sigmoid_array(val, &mut z2);
-    } else {
-        println!("error2");
-        return;
-    }
-
-    let x3 = arr1(&[z2[0], z2[1]]);
-    let x3w3 = x3.dot(&w3) + b3;
-    let mut z3: Vec<f64> = Vec::new();
-    if let Some(val) = x3w3.slice(s![0..;1]).as_slice() {
-        // identity_array(val, &mut z3);
-        softmax_array(val, &mut z3);
-    } else {
-        println!("error3");
-        return;
-    }
-    println!("{:?}", z3);
 }

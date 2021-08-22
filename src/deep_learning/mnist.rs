@@ -2,37 +2,62 @@ extern crate mnist;
 extern crate rulinalg;
 
 use mnist::{Mnist, MnistBuilder};
-use rulinalg::matrix::{BaseMatrix, BaseMatrixMut, Matrix};
+use rulinalg::matrix::{Matrix, BaseMatrix};
 
-fn main() {
-    let (trn_size, rows, cols) = (50_000, 28, 28);
-    let index = 200;
-    // Deconstruct the returned Mnist struct.
-    let Mnist { trn_img, trn_lbl, .. } = MnistBuilder::new()
-        .label_format_digit()
-        .training_set_length(trn_size)
-        .validation_set_length(0)
-        .test_set_length(0)
-        .finalize();
 
-    // Get the label of the first digit.
-    let first_label = trn_lbl[index];
-    println!("The {} digit is a {}.", index, first_label);
+pub struct MnistImages {
+    size: u32,
+    img_rows: usize,
+    img_cols: usize,
+    imgs: Matrix<f32>,
+    labels: Vec<u8>,
+}
 
-    // Convert the flattened training images vector to a matrix.
-    let trn_img = Matrix::new((trn_size * rows) as usize, cols as usize, trn_img);
+impl MnistImages {
+    pub fn new() -> MnistImages {
+        println!("Start loading mnist.");
 
-    // Get the image of the first digit.
-    let row_indexes = ((index*rows as usize)..((index+1)*rows as usize)).collect::<Vec<_>>();
-    let first_image = trn_img.select_rows(&row_indexes);
-    println!("The image looks like... \n{}", first_image);
+        let (size, img_rows, img_cols) = (50_000, 28, 28);
 
-    // Normalizeg
-    let trn_img: Matrix<f32> = trn_img.try_into().unwrap() / 255.0;
+        // Deconstruct the returned Mnist struct.
+        println!("Load mnist resource.");
+        let Mnist {
+            trn_img: imgs,
+            trn_lbl: labels,
+            ..
+        } = MnistBuilder::new()
+            .label_format_digit()
+            .training_set_length(size)
+            .validation_set_length(0)
+            .test_set_length(0)
+            .finalize();
+        
+        // Convert 1D(R:1 C:50000*28*28) to 2D(R:50_000 C:28*28).
+        let imgs = Matrix::new(size as usize, (img_rows * img_cols) as usize, imgs);
 
-    // Get the image of the first digit and round the values to the nearest tenth.
-    let trn_img = trn_img.select_rows(&row_indexes)
-        // floor
-        .apply(&|p| (p * 10.0).round() / 10.0);
-    println!("The image looks like... \n{}", trn_img);
+        // normalyze
+        println!("Normalyze.");
+        let imgs: Matrix<f32> = imgs.try_into().unwrap() / 255.0;
+
+        println!("Complete loading mnist.");
+        return MnistImages{
+            size: size,
+            img_rows: img_rows,
+            img_cols: img_cols,
+            imgs: imgs,
+            labels: labels
+        };
+    }
+
+    pub fn getImgMatrix(&self, index: u32) -> Matrix<f32> {
+        self.imgs.select_rows(&[index as usize]).clone()
+    }
+
+    pub fn getImgVec(&self, index: u32) -> Vec<f32> {
+        self.imgs.select_rows(&[index as usize]).into_vec().clone()
+    }
+
+    pub fn getLabel(&self, index: u32) -> u8{
+        self.labels[index as usize]
+    }
 }
