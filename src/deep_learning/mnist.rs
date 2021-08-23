@@ -9,7 +9,7 @@ pub struct MnistImages {
     size: u32,
     img_rows: usize,
     img_cols: usize,
-    imgs: Matrix<f32>,
+    imgs: Matrix<f64>,
     labels: Vec<u8>,
 }
 
@@ -17,7 +17,7 @@ impl MnistImages {
     pub fn new() -> MnistImages {
         println!("Start loading mnist.");
 
-        let (size, img_rows, img_cols) = (50_000, 28, 28);
+        let (size, img_rows, img_cols) = (100, 28, 28);
 
         // Deconstruct the returned Mnist struct.
         println!("Load mnist resource.");
@@ -37,7 +37,7 @@ impl MnistImages {
 
         // normalyze
         println!("Normalyze.");
-        let imgs: Matrix<f32> = imgs.try_into().unwrap() / 255.0;
+        let imgs: Matrix<f64> = imgs.try_into().unwrap() / 255.0;
 
         println!("Complete loading mnist.");
         return MnistImages{
@@ -49,11 +49,11 @@ impl MnistImages {
         };
     }
 
-    pub fn getImgMatrix(&self, index: u32) -> Matrix<f32> {
+    pub fn getImgMatrix(&self, index: u32) -> Matrix<f64> {
         self.imgs.select_rows(&[index as usize]).clone()
     }
 
-    pub fn getImgVec(&self, index: u32) -> Vec<f32> {
+    pub fn getImgVec(&self, index: u32) -> Vec<f64> {
         self.imgs.select_rows(&[index as usize]).into_vec().clone()
     }
 

@@ -82,7 +82,7 @@ pub fn softmax_array(x: &Array1<f64>) -> Array1<f64> {
 }
 
 
-fn max(x: &Array1<f64>) -> f64 {
+pub fn max(x: &Array1<f64>) -> f64 {
     let mut max = x[0];
     for ix in x {
         max = 
