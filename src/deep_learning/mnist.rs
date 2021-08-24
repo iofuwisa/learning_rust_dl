@@ -17,7 +17,7 @@ impl MnistImages {
     pub fn new() -> MnistImages {
         println!("Start loading mnist.");
 
-        let (size, img_rows, img_cols) = (100, 28, 28);
+        let (size, img_rows, img_cols) = (7_000, 28, 28);
 
         // Deconstruct the returned Mnist struct.
         println!("Load mnist resource.");
