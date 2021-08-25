@@ -35,5 +35,6 @@ fn main(){
     let y = arr1(&[0.1, 0.2, 0.0, 0.6, 0.1]);
     let t = arr1(&[0.0, 0.0, 0.0, 1.0, 0.0]);
     println!("loss: {}", sum_squared_error(&y, &t));
+    println!("loss: {}", crosss_entropy_erro(&y, &t));
 
 }
