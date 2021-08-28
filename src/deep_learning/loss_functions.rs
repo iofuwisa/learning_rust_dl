@@ -30,7 +30,7 @@ pub fn crosss_entropy_erro(y: &Array1<f64>, t: &Array1<f64>) -> f64 {
     let mut e = 0.0;
 
     for i in 0..y.len() {
-        e += t[i] * E.log(y[i]);
+        e += t[i] * E.log(y[i] + E.powi(-7));
     }
 
     e = -e;

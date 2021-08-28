@@ -13,18 +13,25 @@ use ndarray::prelude::{
     arr2,
     s
 };
+use rulinalg::matrix::{
+    Matrix, 
+    Row,
+    BaseMatrix
+};
 
-const TRN_IMG_SIZE: u32 = 5000;
-const VAL_IMG_SIZE: u32 = 0;
-const TST_IMG_SIZE: u32 = 0;
+const TRN_IMG_SIZE: usize = 5000;
+const VAL_IMG_SIZE: usize = 0;
+const TST_IMG_SIZE: usize = 0;
 
-const MINI_BATCH_SIZE: u32 = 100;
+const MINI_BATCH_SIZE: usize = 100;
 
 fn main(){
 
     // Load MNIST
     let mnist_images = MnistImages::new(5000, 0, 0);
     let trn_img = mnist_images.get_trn_img();
+    let trn_lbl = mnist_images.get_trn_lbl();
+    let trn_lbl_one_hot = mnist_images.get_trn_lbl_one_hot();
 
     // Setup NN
     let nn = NeuralNetwork::new();
@@ -32,15 +39,17 @@ fn main(){
     // minibatch index
     let indexes = random_choice(MINI_BATCH_SIZE, TRN_IMG_SIZE);
 
-    // for i in indexes {
-    //     let img = trn_img[i];
-    //     let img = arr1(&img);
+    for i in indexes {
+        let img = trn_img.row(i);
+        let img = img.into_matrix();
+        let img = img.data();
+        let img = arr1(img);
 
-    //     let y = nn.forward(&img);
+        let y = nn.forward(&img);
 
-    //     println!("ans:{}, result:{}", mnist_images.getLabel(n), max(&y));
+        println!("index:{}\nans:{}\nresult:{:?}", i, trn_lbl[i], y);
 
-    // }
+    }
 
 
     // let y = arr1(&[0.1, 0.2, 0.0, 0.6, 0.1]);

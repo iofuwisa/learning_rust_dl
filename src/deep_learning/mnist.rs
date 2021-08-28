@@ -55,9 +55,10 @@ impl MnistImages {
         for row in trn_lbl_one_hot.row_iter() {
             let mut lbl = 0;
             for n in *row {
-                lbl = 
-                if *n > 0 {1}
-                else {0};
+                if *n > 0 {
+                    break;
+                }
+                lbl += 1;
             }
             trn_lbl.push(lbl)
         }
