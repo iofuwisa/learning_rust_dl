@@ -4,3 +4,4 @@ pub mod loss_functions;
 pub mod network;
 pub mod mnist;
 pub mod common;
+pub mod graph_plotter;
