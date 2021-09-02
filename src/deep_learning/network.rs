@@ -6,9 +6,12 @@ use ndarray::prelude::{
 };
 
 use crate::deep_learning::activation_functions::{
+    identity_array,
     sigmoid_array,
     softmax_array
 };
+
+use rand::Rng;
 
 use crate::deep_learning::mnist::*;
 
@@ -52,6 +55,32 @@ impl NeuralNetwork {
     }
 }
 
+pub struct NeuralNetworkLayorBuilder {
+    input_len: u32,
+    neuron_len: u32,
+    activation_function: Box<dyn Fn(&Array1<f64>) -> Array1<f64>>,
+}
+impl NeuralNetworkLayorBuilder {
+    pub fn new() -> NeuralNetworkLayorBuilder {
+        NeuralNetworkLayorBuilder {
+            input_len: 0,
+            neuron_len: 0,
+            activation_function: Box::new(identity_array),
+        }
+    }
+    pub fn set_input_len(mut self, input_len: u32) {
+        self.input_len = input_len;
+    }
+    pub fn set_neuron_len(mut self, neuron_len: u32) {
+        self.neuron_len = neuron_len;
+    }
+    pub fn set_activation_function(mut self, activation_function: Box<dyn Fn(&Array1<f64>) -> Array1<f64>>) {
+        self.activation_function = activation_function;
+    }
+    pub fn build(self) -> NeuralNetworkLayor {
+        NeuralNetworkLayor::new(self.input_len, self.neuron_len, Box::new(self.activation_function))
+    }
+}
 
 pub struct NeuralNetworkLayor {
     weight: Array2<f64>,
@@ -60,8 +89,9 @@ pub struct NeuralNetworkLayor {
 }
 impl NeuralNetworkLayor {
     pub fn new(input_len: u32, neuron_len: u32, activation_function: Box<dyn Fn(&Array1<f64>) -> Array1<f64>>) -> NeuralNetworkLayor {
-        let weight: Array2<f64> = Array2::zeros((input_len as usize, neuron_len as usize));
-        let bias: Array1<f64> = Array::zeros(neuron_len as usize);
+        let mut rng = rand::thread_rng();
+        let weight:Array2<f64> = Array::from_shape_fn((input_len as usize, neuron_len as usize), |(_, _)| rng.gen::<f64>());
+        let bias:Array1<f64> = Array::from_shape_fn(neuron_len as usize, |_| rng.gen::<f64>());
 
         return NeuralNetworkLayor {
             weight: weight,
