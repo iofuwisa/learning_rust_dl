@@ -18,26 +18,21 @@ use crate::deep_learning::mnist::*;
 use rand::prelude::*;
 
 pub struct NeuralNetwork {
-    hidden_layors: Vec<NeuralNetworkLayor>,
-    output_layor: NeuralNetworkLayor,
+    layors: Vec<NeuralNetworkLayor>
 }
 impl NeuralNetwork {
-    pub fn new() -> NeuralNetwork {
-        let input_num = 784;
-        let hidden1_num = 50;
-        let hidden2_num = 100;
-        let output_num = 10;
+    pub fn new(input_len: u32, layor_builders: Vec<NeuralNetworkLayorBuilder>) -> NeuralNetwork {
 
-        let hidden_layors = vec![
-            NeuralNetworkLayor::new(input_num as u32, hidden1_num, Box::new(sigmoid_array)),
-            NeuralNetworkLayor::new(hidden1_num, hidden2_num, Box::new(sigmoid_array)),
-        ];
-
-        let output_layor = NeuralNetworkLayor::new(hidden2_num, output_num, Box::new(softmax_array));
+        let mut layors = Vec::<NeuralNetworkLayor>::with_capacity(layor_builders.len());
+        let mut before_out_len = input_len;
+        for mut builder in layor_builders {
+            builder.set_input_len(before_out_len);
+            before_out_len = builder.get_neuron_len();
+            layors.push(builder.build());
+        }
 
         return NeuralNetwork {
-            hidden_layors: hidden_layors,
-            output_layor: output_layor,
+            layors: layors,
         };
 
     }
@@ -45,50 +40,51 @@ impl NeuralNetwork {
     pub fn forward(&self, input: &Array1<f64>) -> Array1<f64>{
         let mut x = input.clone();
 
-        for layor in &self.hidden_layors {
+        for layor in &self.layors {
             x = layor.forward(&x);
         }
 
-        let y = self.output_layor.forward(&x);
-
-        return y.clone();
+        return x.clone();
     }
 }
 
 pub struct NeuralNetworkLayorBuilder {
     input_len: u32,
     neuron_len: u32,
-    activation_function: Box<dyn Fn(&Array1<f64>) -> Array1<f64>>,
+    activation_function: Box<&'static (dyn Fn(&Array1<f64>) -> Array1<f64>)>,
 }
 impl NeuralNetworkLayorBuilder {
-    pub fn new() -> NeuralNetworkLayorBuilder {
+    pub fn new(neuron_len: u32, activation_function: Box<&'static (dyn Fn(&Array1<f64>) -> Array1<f64>)>) -> NeuralNetworkLayorBuilder {
         NeuralNetworkLayorBuilder {
             input_len: 0,
-            neuron_len: 0,
-            activation_function: Box::new(identity_array),
+            neuron_len: neuron_len,
+            activation_function: activation_function,
         }
     }
-    pub fn set_input_len(mut self, input_len: u32) {
+    pub fn set_input_len(&mut self, input_len: u32) {
         self.input_len = input_len;
     }
-    pub fn set_neuron_len(mut self, neuron_len: u32) {
+    pub fn set_neuron_len(&mut self, neuron_len: u32) {
         self.neuron_len = neuron_len;
     }
-    pub fn set_activation_function(mut self, activation_function: Box<dyn Fn(&Array1<f64>) -> Array1<f64>>) {
+    pub fn get_neuron_len(&self) -> u32 {
+        self.neuron_len
+    }
+    pub fn set_activation_function(&mut self, activation_function: Box<&'static (dyn Fn(&Array1<f64>) -> Array1<f64>)>) {
         self.activation_function = activation_function;
     }
     pub fn build(self) -> NeuralNetworkLayor {
-        NeuralNetworkLayor::new(self.input_len, self.neuron_len, Box::new(self.activation_function))
+        NeuralNetworkLayor::new(self.input_len, self.neuron_len, Box::new(*self.activation_function))
     }
 }
 
 pub struct NeuralNetworkLayor {
     weight: Array2<f64>,
     bias: Array1<f64>,
-    activation_function: Box<dyn Fn(&Array1<f64>) -> Array1<f64>>,
+    activation_function: Box<&'static (dyn Fn(&Array1<f64>) -> Array1<f64>)>,
 }
 impl NeuralNetworkLayor {
-    pub fn new(input_len: u32, neuron_len: u32, activation_function: Box<dyn Fn(&Array1<f64>) -> Array1<f64>>) -> NeuralNetworkLayor {
+    pub fn new(input_len: u32, neuron_len: u32, activation_function: Box<&'static (dyn Fn(&Array1<f64>) -> Array1<f64>)>) -> NeuralNetworkLayor {
         let mut rng = rand::thread_rng();
         let weight:Array2<f64> = Array::from_shape_fn((input_len as usize, neuron_len as usize), |(_, _)| rng.gen::<f64>());
         let bias:Array1<f64> = Array::from_shape_fn(neuron_len as usize, |_| rng.gen::<f64>());
