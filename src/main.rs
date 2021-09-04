@@ -12,12 +12,8 @@ use ndarray::prelude::{
     Array1,
     arr1,
     arr2,
-    s
-};
-use rulinalg::matrix::{
-    Matrix, 
-    Row,
-    BaseMatrix
+    s,
+    Axis
 };
 
 const TRN_IMG_SIZE: usize = 5000;
@@ -28,29 +24,45 @@ const MINI_BATCH_SIZE: usize = 100;
 
 fn main(){
 
-    // // Load MNIST
-    // let mnist_images = MnistImages::new(5000, 0, 0);
-    // let trn_img = mnist_images.get_trn_img();
-    // let trn_lbl = mnist_images.get_trn_lbl();
-    // let trn_lbl_one_hot = mnist_images.get_trn_lbl_one_hot();
+    // Load MNIST
+    let mnist_images = MnistImages::new(5000, 0, 0);
+    let trn_img = mnist_images.get_trn_img();
+    let trn_lbl = mnist_images.get_trn_lbl();
+    let trn_lbl_one_hot = mnist_images.get_trn_lbl_one_hot();
 
-    // // Setup NN
-    // let nn = NeuralNetwork::new();
+    // Setup NN
+    let nn = NeuralNetwork::new(
+        784,
+        vec![
+            NeuralNetworkLayorBuilder::new(50, Box::new(&sigmoid_array)),   // hidden1
+            NeuralNetworkLayorBuilder::new(100, Box::new(&sigmoid_array)),  // hidden2
+            NeuralNetworkLayorBuilder::new(10, Box::new(&softmax_array)),  // output
+        ]
+    );
 
-    // // minibatch index
-    // let indexes = random_choice(MINI_BATCH_SIZE, TRN_IMG_SIZE);
+    // Minibatch index
+    let indexes = random_choice(MINI_BATCH_SIZE, TRN_IMG_SIZE);
 
-    // for i in indexes {
-    //     let img = trn_img.row(i);
-    //     let img = img.into_matrix();
-    //     let img = img.data();
-    //     let img = arr1(img);
+    // Forwading
+    for i in indexes {
+        // Convertt image to Array1 from Matrix
+        let img = trn_img.index_axis(Axis(0), i);
 
-    //     let y = nn.forward(&img);
+        // Forwad
+        let y = nn.forward(&img.to_owned());
 
-    //     println!("index:{}\nans:{}\nresult:{:?}", i, trn_lbl[i], y);
+        let mut max_index = 0;
+        for i in 0..10 {
+            if y[i] > y[max_index] {
+                max_index = i;
+            }
+        }
 
-    // }
+        println!("ans:{}", trn_lbl[i]);
+        println!("res:{}", max_index);
+        println!("loss:{}", crosss_entropy_erro(&y, &trn_lbl_one_hot.index_axis(Axis(0), i).to_owned()));
+
+    }
 
     // let plot_data = Vec::<(&str, f64)>::with_capacity(20);
     // for n in 0..20 {
@@ -60,14 +72,14 @@ fn main(){
     // }
     // // prot(&plot_data);
 
-    for x1 in -10..11 {
-        for x2 in -10..11 {
-            let grad = numeric_gradient(Box::new(f2), &vec![x1 as f64 / 10.0, x2 as f64 / 10.0]);
-            print!("{},{}  ",  format!("{:.*}", 2, grad[0] * 100000000.0), format!("{:.*}", 2, grad[1] * 100000000.0));
-            // print!("{},{}  ",  grad[0], grad[1]);
-        }
-        println!();
-    }    
+    // for x1 in -10..11 {
+    //     for x2 in -10..11 {
+    //         let grad = numeric_gradient(Box::new(f2), &vec![x1 as f64 / 10.0, x2 as f64 / 10.0]);
+    //         print!("{},{}  ",  format!("{:.*}", 2, grad[0] * 100000000.0), format!("{:.*}", 2, grad[1] * 100000000.0));
+    //         // print!("{},{}  ",  grad[0], grad[1]);
+    //     }
+    //     println!();
+    // }    
 }
 
 fn f2(x: &Vec<f64>) -> f64 {
