@@ -46,6 +46,32 @@ impl NeuralNetwork {
 
         return x.clone();
     }
+
+    pub fn forward_diff(&self, input: &Array1<f64>, wh: &Vec<Array2<f64>>, bh: &Vec<Array1<f64>>) -> Array1<f64>{
+        let mut x = input.clone();
+
+        for i in 0..self.layors.len() {
+            x = self.layors[i].forward_diff(&x, &wh[i], &bh[i]);
+        }
+
+        return x.clone();
+    }
+
+    pub fn get_network_size(&self) -> Vec<((usize, usize), usize)>{
+        let mut size = Vec::<((usize, usize), usize)>::with_capacity(self.layors.len());
+
+        for layor in &self.layors {
+            size.push(layor.get_layor_size());
+        }
+
+        return size;
+    }
+
+    pub fn update_parameters_add(&mut self, weight: &Vec<Array2<f64>>, bias: &Vec<Array1<f64>>) {
+        for i in 0..self.layors.len() {
+            self.layors[i].update_parameters_add(&weight[i], &bias[i]);
+        }
+    }   
 }
 
 pub struct NeuralNetworkLayorBuilder {
@@ -103,5 +129,22 @@ impl NeuralNetworkLayor {
         let y = &(self.activation_function.as_ref())(&(a));
         return y.clone();
     }
+
+    pub fn forward_diff(&self, x: &Array1<f64>, wh: &Array2<f64>, bh: &Array1<f64>) -> Array1<f64> {
+        let a = x.dot(&(&self.weight + wh)) + &self.bias + bh;
+        let a = arr1(&(a.as_slice().unwrap()));
+
+        let y = &(self.activation_function.as_ref())(&(a));
+        return y.clone();
+    }
+
+    pub fn get_layor_size(&self) -> ((usize, usize), usize) {
+        (self.weight.dim(), self.bias.len())
+    }
     
+    pub fn update_parameters_add(&mut self, weight: &Array2<f64>, bias: &Array1<f64>) {
+        self.weight = &self.weight + weight;
+        self.bias = &self.bias + bias;
+    }   
+
 }

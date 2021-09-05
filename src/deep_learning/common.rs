@@ -1,5 +1,11 @@
 use rand::Rng;
 
+use ndarray::prelude::{
+    Array,
+    Array1,
+
+};
+
 pub fn random_choice(size: usize, max: usize) -> Vec<usize> {
     let mut rng = rand::thread_rng();
 
@@ -19,10 +25,12 @@ pub fn numeric_diff(func: Box<dyn Fn(f64) -> f64>, x: f64) -> f64 {
 }
 
 // Numerical gradient
-pub fn numeric_gradient(func: Box<dyn Fn(&Vec<f64>) -> f64>, x: &Vec<f64>) -> Vec<f64> {
+pub fn numeric_gradient<F: Fn(&Array1<f64>) -> f64>(func: F, x: &Array1<f64>) -> Array1<f64> {
     let h = 0.0001;
-    let mut grad = Vec::<f64>::with_capacity(x.len());
+    let mut grad: Array1<f64> = Array::zeros(x.len());
 
+
+    let mut progress = 0.0;
     for i in 0..x.len() {
         let mut argx = x.clone();
         argx[i] = argx[i] + h;
@@ -31,7 +39,13 @@ pub fn numeric_gradient(func: Box<dyn Fn(&Vec<f64>) -> f64>, x: &Vec<f64>) -> Ve
         argx[i] = argx[i] - h;
         let fxh2 = func(&argx);
 
-        grad.push((fxh1 - fxh2) / 2.0 * h)
+        grad[i] = (fxh1 - fxh2) / 2.0 * h;
+
+        // println!("Gradient progress: {}% {}/{}", i*100/x.len(), i, x.len());
+        if progress+0.05 < i as f64 / x.len() as f64 {
+            progress += 0.05;
+            println!("Gradient progress: {}%", progress*100.0);
+        }
 
     }
 
