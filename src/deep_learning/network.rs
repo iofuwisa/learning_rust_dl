@@ -3,6 +3,8 @@ use ndarray::prelude::{
     Array1,
     Array2,
     arr1,
+    arr2,
+    Dim,
 };
 
 use crate::deep_learning::activation_functions::{
@@ -124,7 +126,6 @@ impl NeuralNetworkLayor {
 
     pub fn forward(&self, x: &Array1<f64>) -> Array1<f64> {
         let a = x.dot(&self.weight) + &self.bias;
-        let a = arr1(&(a.as_slice().unwrap()));
 
         let y = &(self.activation_function.as_ref())(&(a));
         return y.clone();
@@ -132,7 +133,6 @@ impl NeuralNetworkLayor {
 
     pub fn forward_diff(&self, x: &Array1<f64>, wh: &Array2<f64>, bh: &Array1<f64>) -> Array1<f64> {
         let a = x.dot(&(&self.weight + wh)) + &self.bias + bh;
-        let a = arr1(&(a.as_slice().unwrap()));
 
         let y = &(self.activation_function.as_ref())(&(a));
         return y.clone();
@@ -147,4 +147,66 @@ impl NeuralNetworkLayor {
         self.bias = &self.bias + bias;
     }   
 
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn NeuralNetworkLayor_new() {
+        let a = NeuralNetworkLayor::new(10, 20, Box::new(&activation_stub));
+        assert_eq!(a.weight.raw_dim(), Dim([10, 20]));
+        assert_eq!(a.bias.raw_dim(), Dim([20]));
+        assert_eq!(&(a.activation_function.as_ref())(&arr1(&[1.0;10])), arr1(&[1.0;10]));
+    }
+
+    #[test]
+    fn NeuralNetworkLayor_forward() {
+        let nnl = NeuralNetworkLayor {
+            weight: arr2(&[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+            bias: arr1(&[7.0, 8.0, 9.0]),
+            activation_function: Box::new(&activation_stub),
+        };
+        let a = nnl.forward(&arr1(&[2.0, 4.0]));
+        assert_eq!(a,  arr1(&[25.0, 32.0, 39.0]));
+    }
+
+    #[test]
+    fn NeuralNetworkLayor_forward_diff() {
+        let nnl = NeuralNetworkLayor {
+            weight: arr2(&[[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]]),
+            bias: arr1(&[6.0, 7.0, 8.0]),
+            activation_function: Box::new(&activation_stub),
+        };
+        let a = nnl.forward_diff(&arr1(&[2.0, 4.0]), &arr2(&[[1.0, 1.0, 1.0], [1.0, 1.0, 1.0]]), &arr1(&[1.0, 1.0, 1.0]));
+        assert_eq!(a,  arr1(&[25.0, 32.0, 39.0]));
+    }
+
+    #[test]
+    fn NeuralNetworkLayor_get_layor_size() {
+        let nnl = NeuralNetworkLayor {
+            weight: arr2(&[[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]]),
+            bias: arr1(&[6.0, 7.0, 8.0]),
+            activation_function: Box::new(&activation_stub),
+        };
+        let a = nnl.get_layor_size();
+        assert_eq!(((2, 3), 3), a);
+    }
+
+    #[test]
+    fn NeuralNetworkLayor_update_parameters_add() {
+        let mut nnl = NeuralNetworkLayor {
+            weight: arr2(&[[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]]),
+            bias: arr1(&[6.0, 7.0, 8.0]),
+            activation_function: Box::new(&activation_stub),
+        };
+        nnl.update_parameters_add(&arr2(&[[1.0, 1.0, 1.0], [1.0, 1.0, 1.0]]), &arr1(&[1.0, 1.0, 1.0]));
+        assert_eq!(nnl.weight, arr2(&[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]));
+        assert_eq!(nnl.bias, arr1(&[7.0, 8.0, 9.0]));
+    }
+
+    fn activation_stub(x: &Array1<f64>) -> Array1<f64> {
+        x.clone()
+    }
 }
