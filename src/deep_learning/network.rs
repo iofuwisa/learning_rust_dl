@@ -150,9 +150,143 @@ impl NeuralNetworkLayor {
 }
 
 #[cfg(test)]
-mod test {
+mod NeuralNetwork_test {
     use super::*;
 
+    #[test]
+    fn NeuralNetwork_new() {
+        let a = NeuralNetwork::new(10, vec![
+            NeuralNetworkLayorBuilder::new(80, Box::new(&activation_stub)),
+            NeuralNetworkLayorBuilder::new(40, Box::new(&activation_stub)),
+            NeuralNetworkLayorBuilder::new(20, Box::new(&activation_stub)),
+        ]);
+
+        assert_eq!(a.layors[0].weight.raw_dim(), Dim([10, 80]));
+        assert_eq!(a.layors[0].bias.raw_dim(), Dim([80]));
+        assert_eq!(&(a.layors[0].activation_function.as_ref())(&arr1(&[1.0;10])), arr1(&[1.0;10]));
+
+        assert_eq!(a.layors[1].weight.raw_dim(), Dim([80, 40]));
+        assert_eq!(a.layors[1].bias.raw_dim(), Dim([40]));
+        assert_eq!(&(a.layors[1].activation_function.as_ref())(&arr1(&[1.0;10])), arr1(&[1.0;10]));
+
+        assert_eq!(a.layors[2].weight.raw_dim(), Dim([40, 20]));
+        assert_eq!(a.layors[2].bias.raw_dim(), Dim([20]));
+        assert_eq!(&(a.layors[2].activation_function.as_ref())(&arr1(&[1.0;10])), arr1(&[1.0;10]));
+    }
+
+    #[test]
+    fn NeuralNetwork_forward() {
+        let a = NeuralNetwork {
+            layors: vec![
+                NeuralNetworkLayor {
+                    weight: arr2(&[[1.0, 2.0, 3.0],[4.0, 5.0, 6.0]]),
+                    bias: arr1(&[2.0, 2.0, 2.0]),
+                    activation_function: Box::new(&activation_stub),
+                },
+                NeuralNetworkLayor {
+                    weight: arr2(&[[1.0, 2.0],[3.0, 4.0], [5.0, 6.0]]),
+                    bias: arr1(&[1.0, 1.0]),
+                    activation_function: Box::new(&activation_stub),
+                },
+                NeuralNetworkLayor {
+                    weight: arr2(&[[1.0, 3.0, 5.0],[2.0, 4.0, 6.0]]),
+                    bias: arr1(&[1.0, 1.0, 1.0]),
+                    activation_function: Box::new(&activation_stub),
+                }
+            ]
+        };
+        let a = a.forward(&arr1(&[1.0, 2.0]));
+
+        assert_eq!(a, arr1(&[502.0, 1142.0, 1782.0]));
+    }
+
+    #[test]
+    fn NeuralNetwork_forward_diff() {
+        let a = NeuralNetwork {
+            layors: vec![
+                NeuralNetworkLayor {
+                    weight: arr2(&[[0.0, 1.0, 2.0],[3.0, 4.0, 5.0]]),
+                    bias: arr1(&[0.0, 0.0, 0.0]),
+                    activation_function: Box::new(&activation_stub),
+                },
+                NeuralNetworkLayor {
+                    weight: arr2(&[[0.0, 1.0],[2.0, 3.0], [4.0, 5.0]]),
+                    bias: arr1(&[-1.0, -1.0]),
+                    activation_function: Box::new(&activation_stub),
+                },
+                NeuralNetworkLayor {
+                    weight: arr2(&[[0.0, 2.0, 4.0],[1.0, 3.0, 5.0]]),
+                    bias: arr1(&[-1.0, -1.0, -1.0]),
+                    activation_function: Box::new(&activation_stub),
+                }
+            ]
+        };
+        let a = a.forward_diff(
+                                &arr1(&[1.0, 2.0]),
+                                &vec![
+                                    Array2::from_elem((2, 3), 1.0),
+                                    Array2::from_elem((3, 2), 1.0),
+                                    Array2::from_elem((2, 3), 1.0),
+                                ],
+                                &vec![
+                                    Array1::from_elem(3, 2.0),
+                                    Array1::from_elem(2, 2.0),
+                                    Array1::from_elem(3, 2.0),
+                                ],
+                            );
+        assert_eq!(a, arr1(&[502.0, 1142.0, 1782.0]));
+    }
+
+    #[test]
+    fn NeuralNetwork_get_layor_size() {
+        let a = NeuralNetwork::new(10, vec![
+            NeuralNetworkLayorBuilder::new(80, Box::new(&activation_stub)),
+            NeuralNetworkLayorBuilder::new(40, Box::new(&activation_stub)),
+            NeuralNetworkLayorBuilder::new(20, Box::new(&activation_stub)),
+        ]);
+
+        let a = a.get_network_size();
+
+        assert_eq!(
+            a,
+            vec![
+                ((10, 80), 80),
+                ((80, 40), 40),
+                ((40, 20), 20),
+            ]
+        );
+    }
+
+    fn activation_stub(x: &Array1<f64>) -> Array1<f64> {
+        x.clone()
+    }
+}
+
+
+#[cfg(test)]
+mod NeuralNetworkLayorBuilder_test {
+    use super::*;
+
+    #[test]
+    fn NeuralNetworkLayorBuilder_new() {
+        let mut a = NeuralNetworkLayorBuilder::new(10, Box::new(&activation_stub));
+        a.set_input_len(5);
+        let a = a.build();
+        assert_eq!(a.weight.raw_dim(), Dim([5, 10]));
+        assert_eq!(a.bias.raw_dim(), Dim([10]));
+        assert_eq!(&(a.activation_function.as_ref())(&arr1(&[1.0;10])), arr1(&[1.0;10]));
+    }
+
+    fn activation_stub(x: &Array1<f64>) -> Array1<f64> {
+        x.clone()
+    }
+}
+
+
+#[cfg(test)]
+mod NeuralNetworkLayor_test {
+    use super::*;
+    
     #[test]
     fn NeuralNetworkLayor_new() {
         let a = NeuralNetworkLayor::new(10, 20, Box::new(&activation_stub));
