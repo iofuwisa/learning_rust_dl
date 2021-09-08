@@ -257,11 +257,54 @@ mod NeuralNetwork_test {
         );
     }
 
+    fn NeuralNetwork_get_layor_update_parameters_add() {
+        let mut a = NeuralNetwork {
+            layors: vec![
+                NeuralNetworkLayor {
+                    weight: arr2(&[[0.0, 1.0, 2.0],[3.0, 4.0, 5.0]]),
+                    bias: arr1(&[0.0, 0.0, 0.0]),
+                    activation_function: Box::new(&activation_stub),
+                },
+                NeuralNetworkLayor {
+                    weight: arr2(&[[0.0, 1.0],[2.0, 3.0], [4.0, 5.0]]),
+                    bias: arr1(&[-1.0, -1.0]),
+                    activation_function: Box::new(&activation_stub),
+                },
+                NeuralNetworkLayor {
+                    weight: arr2(&[[0.0, 2.0, 4.0],[1.0, 3.0, 5.0]]),
+                    bias: arr1(&[-1.0, -1.0, -1.0]),
+                    activation_function: Box::new(&activation_stub),
+                }
+            ]
+        };
+
+        let weight_add = vec![
+            arr2(&[[1.0, 4.0, 7.0],[1.0, 4.0, 7.0]]),
+            arr2(&[[2.0, 5.0],[8.0, 2.0], [5.0, 8.0]]),
+            arr2(&[[3.0, 6.0, 9.0],[3.0, 6.0, 9.0]]),
+        ];
+
+        let bias_add = vec![
+            arr1(&[3.0, 4.0, 5.0]),
+            arr1(&[6.0, 7.0]),
+            arr1(&[8.0, 9.0, 3.0]),
+        ];
+
+        a.update_parameters_add(&weight_add, &bias_add);
+
+        assert_eq!(a.layors[0].weight, arr2(&[[1.0, 5.0, 9.0],[4.0, 8.0, 12.0]]));
+        assert_eq!(a.layors[1].weight, arr2(&[[2.0, 6.0], [10.0, 5.0], [9.0, 13.0]]));
+        assert_eq!(a.layors[2].weight, arr2(&[[3.0, 8.0, 13.0],[4.0, 9.0, 14.0]]));
+
+        assert_eq!(a.layors[0].bias, arr1(&[3.0, 4.0, 5.0]));
+        assert_eq!(a.layors[1].bias, arr1(&[5.0, 6.0]));
+        assert_eq!(a.layors[2].bias, arr1(&[7.0, 8.0, 2.0]));
+    }
+
     fn activation_stub(x: &Array1<f64>) -> Array1<f64> {
         x.clone()
     }
-}
-
+}  
 
 #[cfg(test)]
 mod NeuralNetworkLayorBuilder_test {
