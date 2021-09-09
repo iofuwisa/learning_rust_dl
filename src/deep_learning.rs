@@ -5,3 +5,4 @@ pub mod network;
 pub mod mnist;
 pub mod common;
 pub mod graph_plotter;
+pub mod network_learning;
