@@ -31,7 +31,7 @@ pub fn numeric_gradient<F: Fn(&Array1<f64>) -> f64>(func: F, x: &Array1<f64>) ->
         grad[i] = (fxh1 - fxh2) / (2.0 * h);
 
         // println!("Gradient progress: {}% {}/{}", i*100/x.len(), i, x.len());
-        if progress+0.05 < i as f64 / x.len() as f64 {
+        if progress+0.01 < i as f64 / x.len() as f64 {
             progress += 0.05;
             println!("Gradient progress: {}%", progress*100.0);
         }

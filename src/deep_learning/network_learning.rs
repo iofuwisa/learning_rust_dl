@@ -4,6 +4,9 @@ use crate::deep_learning::common::*;
 
 use rand::Rng;
 
+use std::time::{Duration, Instant};
+
+
 use ndarray::prelude::{
     Array1,
     Array2,
@@ -46,21 +49,35 @@ pub fn network_learning(network: &mut NeuralNetwork, trn_data: &Array2<f64>, trn
 fn calc_gradient(network: &NeuralNetwork, trn_data: &Array2<f64>, trn_lbl_one_hot: &Array2<f64>, minibatch_size: usize) -> (Vec::<Array2<f64>>, Vec::<Array1<f64>>)  {
 
     // Choise minibatch indexes
-    let indexes = random_choice(trn_data.shape()[0], minibatch_size);
+    let indexes = random_choice(minibatch_size, trn_data.shape()[0]);
 
     // Forwading
     // This closure is called in nuumeric_gradient
     let f = |x: &Array1<f64>| -> f64 {
+        // let t1 = Instant::now();
         let (weight_h, bias_h) = parse_weight_bias_from_arr1(x, &network.get_network_size());
+        // let du = t1.elapsed();
+        // println!("Elapsed parse: {}", du.as_nanos());
         
         let mut loss = 0.0;
         for i in &indexes {
+            // let t2 = Instant::now();
             let data = trn_data.index_axis(Axis(0), *i);
+            // let du = t2.elapsed();
+            // println!("Elapsed idexes: {}", du.as_nanos());
 
+            // let t3 = Instant::now();
             let y = network.forward_diff(&data.to_owned(), &weight_h, &bias_h);
+            // let du = t3.elapsed();
+            // println!("Elapsed forward: {}", du.as_nanos());
 
+            // let t4 = Instant::now();
             loss += crosss_entropy_erro(&y, &trn_lbl_one_hot.index_axis(Axis(0), *i).to_owned());
+            // let du = t4.elapsed();
+            // println!("Elapsed loss: {}", du.as_nanos());
+
         }
+
         return loss;
     };
 
