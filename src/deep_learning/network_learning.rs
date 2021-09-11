@@ -20,8 +20,8 @@ use ndarray::prelude::{
 pub fn network_learning(network: &mut NeuralNetwork, trn_data: &Array2<f64>, trn_lbl_one_hot: &Array2<f64>, tst_data: &Array2<f64>, tst_lbl_one_hot: &Array2<f64>, iterations_num: u32, learning_rate: f64, minibatch_size: usize) {
 
     println!("Start learning");
-    // let (_loss, _rate) = test(network, tst_data, tst_lbl_one_hot);
-    let (_loss, _rate) = test(network, trn_data, trn_lbl_one_hot);
+    let (_loss, _rate) = test(network, tst_data, tst_lbl_one_hot);
+    // let (_loss, _rate) = test(network, trn_data, trn_lbl_one_hot);
 
     for iteration in 0..iterations_num {
 
@@ -32,8 +32,8 @@ pub fn network_learning(network: &mut NeuralNetwork, trn_data: &Array2<f64>, trn
         network.update_parameters_add(&update_weight, &update_bias);
 
         println!("Complete iter {}", iteration + 1);
-        // let (_loss, _rate) = test(network, tst_data, tst_lbl_one_hot);
-        let (_loss, _rate) = test(network, trn_data, trn_lbl_one_hot);
+        let (_loss, _rate) = test(network, tst_data, tst_lbl_one_hot);
+        // let (_loss, _rate) = test(network, trn_data, trn_lbl_one_hot);
     }
 }
 
@@ -116,16 +116,16 @@ pub fn random_choice(size: usize, max: usize) -> Vec<usize> {
 
     let mut choice = Vec::<usize>::with_capacity(size as usize);
     for i in 0..size {
-        // choice.push((rng.gen::<f32>()*max as f32).floor() as usize);
-        choice.push(i);
+        choice.push((rng.gen::<f32>()*max as f32).floor() as usize);
+        // choice.push(i);
     }
     
     return choice;
 }
 
 fn test(network: &NeuralNetwork, tst_data: &Array2<f64>, tst_lbl_one_hot: &Array2<f64>) -> (f64, f64) {
-    // let test_sampl_size = 1000;
-    let test_sampl_size = 100;
+    let test_sampl_size = 1000;
+    // let test_sampl_size = 100;
     let indexes = random_choice(test_sampl_size, tst_data.shape()[0]);
     let mut total_loss: f64 = 0.0;
     let mut correct_count = 0;
@@ -133,17 +133,18 @@ fn test(network: &NeuralNetwork, tst_data: &Array2<f64>, tst_lbl_one_hot: &Array
         // Guess
         let data = tst_data.index_axis(Axis(0), *i).to_owned();
         let y = network.forward(&data);
+        let t = tst_lbl_one_hot.index_axis(Axis(0), *i).to_owned();
 
         // Calculate loss
-        total_loss += crosss_entropy_error(&y, &tst_lbl_one_hot.index_axis(Axis(0), *i).to_owned()) / test_sampl_size as f64;
+        total_loss += crosss_entropy_error(&y, &t);
 
         // Calculate rate correct answer rate
-        let y_max_index = max_index_in_arr1(y);
-        let lbl_max_index = max_index_in_arr1(tst_lbl_one_hot.index_axis(Axis(0), *i).to_owned());
+        let y_max_index = max_index_in_arr1(&y);
+        let lbl_max_index = max_index_in_arr1(&t);
         correct_count += if y_max_index==lbl_max_index {1} else {0};
     }
-    // let loss = total_loss / test_sampl_size as f64;
-    let loss = total_loss;
+    let loss = total_loss / test_sampl_size as f64;
+    // let loss = total_loss;
     let correct_rate = correct_count as f64 / test_sampl_size  as f64;
 
     println!("Loss: {}", loss);
@@ -153,15 +154,6 @@ fn test(network: &NeuralNetwork, tst_data: &Array2<f64>, tst_lbl_one_hot: &Array
     return (loss, correct_rate);
 }
 
-fn max_index_in_arr1(arr: Array1<f64>) -> usize {
-    let mut max_index: usize = 0;
-    for i in 0..arr.len() {
-        if arr[i] > arr[max_index as usize] {
-            max_index = i;
-        }
-    }
-    return max_index
-}
 
 #[cfg(test)]
 mod test_mod {

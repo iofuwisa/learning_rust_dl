@@ -48,6 +48,8 @@ mod test_mod {
     fn test_crosss_entropy_error() {
         let y1 = arr1(&[0.1, 0.6, 0.2, 0.1]);
         let y2 = arr1(&[0.0, 1.0, 0.0, 0.0]);
+        // let y3 = arr1(&[-0.1, -0.6, -0.2, -0.1]);
+        let y3 = arr1(&[-0.1, 0.6, 0.2, 0.1]);
         let t = arr1(&[0.0, 1.0, 0.0, 0.0]);
 
         let a = crosss_entropy_error(&y1, &t);
@@ -55,5 +57,8 @@ mod test_mod {
 
         let a = crosss_entropy_error(&y2, &t);
         assert_eq!((a * 1000.0).floor() / 1000.0, 0.0);
+
+        let a = crosss_entropy_error(&y3, &t);
+        assert_eq!((a * 1000.0).floor() / 1000.0, -0.1);
     }  
 }

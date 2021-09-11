@@ -1,7 +1,9 @@
 use std::f64::consts::E;
 use ndarray::prelude::{
     Array1,
+    arr1,
 };
+use crate::deep_learning::common::*;
 
 
 // step function
@@ -90,4 +92,52 @@ pub fn max(x: &Array1<f64>) -> f64 {
         else { max }
     } 
     return max;
+}
+
+#[cfg(test)]
+mod test_mod {
+    use super::*;
+
+    #[test]
+    fn test_max() {
+        let arr = arr1(&[0.1, -8.0, 5.0, 10.0]);
+        let a = max(&arr);
+        assert_eq!(a, 10.0);
+
+
+        let arr = arr1(&[-0.1, -8.0, -2.0]);
+        let a =max(&arr);
+        assert_eq!(a, -0.1);
+    }
+
+    #[test]
+    fn test_softmax_array_max() {
+        let arr = arr1(&[0.1, -8.0, 5.0, 10.0, 2.0]);
+        let a = softmax_array(&arr);
+        assert_eq!(max_index_in_arr1(&a), 3);
+
+        let arr = arr1(&[-0.1, -8.0, -5.0, -10.0, -2.0]);
+        let a = softmax_array(&arr);
+        assert_eq!(max_index_in_arr1(&a), 0);
+    }
+
+    #[test]
+    fn test_softmax_array_total() {
+        let arr = arr1(&[0.1, -8.0, 5.0, 10.0, 2.0]);
+        let a = softmax_array(&arr);
+        let mut sub = 0.0;
+        for i in 0.. arr.len() {
+            sub += a[i];
+        }
+        assert_eq!(round_digit(sub, -3), 1.0);
+
+        let arr = arr1(&[-0.1, -8.0, -5.0, -10.0, -2.0]);
+        let a = softmax_array(&arr);
+        let mut sub = 0.0;
+        for i in 0.. arr.len() {
+            sub += a[i];
+        }
+        assert_eq!(round_digit(sub, -3), 1.0);
+    }
+
 }

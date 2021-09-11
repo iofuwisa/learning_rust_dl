@@ -41,6 +41,24 @@ pub fn numeric_gradient<F: Fn(&Array1<f64>) -> f64>(func: F, x: &Array1<f64>) ->
     return grad;
 }
 
+pub fn max_index_in_arr1(arr: &Array1<f64>) -> usize {
+    let mut max_index: usize = 0;
+    for i in 0..arr.len() {
+        if arr[i] > arr[max_index as usize] {
+            max_index = i;
+        }
+    }
+    return max_index
+}
+
+pub fn round_digit(num: f64, digit: i32) -> f64 {
+    if digit == 0 {
+        num.round()
+    } else {
+        (num * 10.0_f64.powi(-digit)).round() * 10.0_f64.powi(digit)
+    }
+}
+
 pub fn print_img(img: &Array1<f64>) {
     for i in 0..28 {
         for j in 0..28 {
@@ -53,6 +71,13 @@ pub fn print_img(img: &Array1<f64>) {
 #[cfg(test)]
 mod NeuralNetwork_test {
     use super::*;
+
+    #[test]
+    fn test_round_digit() {
+        assert_eq!(round_digit(3.14, 0), 3.0);
+        assert_eq!(round_digit(123456.789123, 3), 123000.0);
+        assert_eq!(round_digit(123456.789123, -3), 123456.789);
+    }
 
     #[test]
     fn test_numeric_gradient() {
