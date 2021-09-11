@@ -19,30 +19,21 @@ use ndarray::prelude::{
 
 pub fn network_learning(network: &mut NeuralNetwork, trn_data: &Array2<f64>, trn_lbl_one_hot: &Array2<f64>, tst_data: &Array2<f64>, tst_lbl_one_hot: &Array2<f64>, iterations_num: u32, learning_rate: f64, minibatch_size: usize) {
 
-    let (loss, rate) = test(network, tst_data, tst_lbl_one_hot);
     println!("Start learning");
-    println!("Loss: {}", loss);
-    println!("CorrectRate: {}%", rate * 100.0);
-    println!("");
+    // let (_loss, _rate) = test(network, tst_data, tst_lbl_one_hot);
+    let (_loss, _rate) = test(network, trn_data, trn_lbl_one_hot);
 
     for iteration in 0..iterations_num {
 
         let (grad_weight, grad_bias) = calc_gradient(network, trn_data, trn_lbl_one_hot, minibatch_size);
         
-        // Calc value update
-        let mut update_weight = Vec::<Array2<f64>>::new();
-        let mut update_bias = Vec::<Array1<f64>>::new();
-        for i in 0..grad_weight.len() {
-            update_weight.push(grad_weight[i].mapv(|w:f64| -> f64 {w*-1.0*learning_rate}));
-            update_bias.push(grad_bias[i].mapv(|b:f64| -> f64 {b*-1.0*learning_rate}));
-        }
+        let (update_weight, update_bias) = calc_update_value(&grad_weight, &grad_bias, learning_rate);
+
         network.update_parameters_add(&update_weight, &update_bias);
 
-        let (loss, rate) = test(network, tst_data, tst_lbl_one_hot);
         println!("Complete iter {}", iteration + 1);
-        println!("Loss: {}", loss);
-        println!("CorrectRate: {}%", rate * 100.0);
-        println!("");
+        // let (_loss, _rate) = test(network, tst_data, tst_lbl_one_hot);
+        let (_loss, _rate) = test(network, trn_data, trn_lbl_one_hot);
     }
 }
 
@@ -62,17 +53,18 @@ fn calc_gradient(network: &NeuralNetwork, trn_data: &Array2<f64>, trn_lbl_one_ho
         let mut loss = 0.0;
         for i in &indexes {
             // let t2 = Instant::now();
-            let data = trn_data.index_axis(Axis(0), *i);
+            let data = trn_data.index_axis(Axis(0), *i).to_owned();
+            let lbl_one_hot = trn_lbl_one_hot.index_axis(Axis(0), *i).to_owned();
             // let du = t2.elapsed();
             // println!("Elapsed idexes: {}", du.as_nanos());
 
             // let t3 = Instant::now();
-            let y = network.forward_diff(&data.to_owned(), &weight_h, &bias_h);
+            let y = network.forward_diff(&data, &weight_h, &bias_h);
             // let du = t3.elapsed();
             // println!("Elapsed forward: {}", du.as_nanos());
 
             // let t4 = Instant::now();
-            loss += crosss_entropy_erro(&y, &trn_lbl_one_hot.index_axis(Axis(0), *i).to_owned());
+            loss += crosss_entropy_error(&y, &lbl_one_hot);
             // let du = t4.elapsed();
             // println!("Elapsed loss: {}", du.as_nanos());
 
@@ -81,17 +73,27 @@ fn calc_gradient(network: &NeuralNetwork, trn_data: &Array2<f64>, trn_lbl_one_ho
         return loss;
     };
 
-    let network_size = network.get_network_size();
-    let mut parameter_size = 0;
-    for ((weight_row_size, weight_col_size), bias_size) in &network_size {
-        parameter_size += weight_row_size * weight_col_size + bias_size;
-    }
-    let x: Array1<f64> = Array1::<f64>::zeros(parameter_size);
-    let grad = numeric_gradient(f, &x);
+    let grad = numeric_gradient(f, &Array1::<f64>::zeros(network.get_network_total_tize()));
 
-    return parse_weight_bias_from_arr1(&grad, &network_size);
+    return parse_weight_bias_from_arr1(&grad, &network.get_network_size());
 }
 
+fn calc_update_value(grad_weight: &Vec<Array2<f64>>, grad_bias: &Vec<Array1<f64>>, learning_rate: f64) -> (Vec<Array2<f64>>, Vec<Array1<f64>>) {
+    if grad_weight.len() != grad_bias.len() {
+        panic!("Different len grad_weight({}) and grad_bias({})", grad_weight.len(), grad_bias.len());
+    }
+
+    let mut update_weight = Vec::<Array2<f64>>::new();
+    let mut update_bias = Vec::<Array1<f64>>::new();
+    for i in 0..grad_weight.len() {
+        update_weight.push(grad_weight[i].mapv(|w:f64| -> f64 {w*-1.0*learning_rate}));
+        update_bias.push(grad_bias[i].mapv(|b:f64| -> f64 {b*-1.0*learning_rate}));
+    }
+
+    return (update_weight, update_bias);
+}
+
+// Parse serial numbers to NN's weight and bias
 fn parse_weight_bias_from_arr1(value: &Array1<f64>, network_size: &Vec<((usize, usize), usize)>) -> (Vec::<Array2<f64>>, Vec::<Array1<f64>>) {
     let mut weight = Vec::<Array2<f64>>::new();
     let mut bias = Vec::<Array1<f64>>::new();
@@ -109,49 +111,57 @@ fn parse_weight_bias_from_arr1(value: &Array1<f64>, network_size: &Vec<((usize, 
     return (weight, bias);
 }
 
-fn random_choice(size: usize, max: usize) -> Vec<usize> {
+pub fn random_choice(size: usize, max: usize) -> Vec<usize> {
     let mut rng = rand::thread_rng();
 
     let mut choice = Vec::<usize>::with_capacity(size as usize);
-    for _ in 0..size {
-        choice.push((rng.gen::<f32>()*max as f32).floor() as usize);
+    for i in 0..size {
+        // choice.push((rng.gen::<f32>()*max as f32).floor() as usize);
+        choice.push(i);
     }
     
     return choice;
 }
 
 fn test(network: &NeuralNetwork, tst_data: &Array2<f64>, tst_lbl_one_hot: &Array2<f64>) -> (f64, f64) {
-    // Test
-    let test_sampl_size = 1000;
+    // let test_sampl_size = 1000;
+    let test_sampl_size = 100;
     let indexes = random_choice(test_sampl_size, tst_data.shape()[0]);
-    let mut loss: f64 = 0.0;
+    let mut total_loss: f64 = 0.0;
     let mut correct_count = 0;
     for i in &indexes {
         // Guess
         let data = tst_data.index_axis(Axis(0), *i).to_owned();
         let y = network.forward(&data);
-        // Loss
-        loss += crosss_entropy_erro(&y, &tst_lbl_one_hot.index_axis(Axis(0), *i).to_owned());
-        // Correct answer rate
-        let lbl = tst_lbl_one_hot.index_axis(Axis(0), *i).to_owned();
-        let mut answer_max_index: u8 = 0;
-        let mut lbl_max_index: u8 = 0;
-        for j in 0..10 {
-                if y[j] > y[answer_max_index as usize] {
-                    answer_max_index = j as u8;
-                }
-                if lbl[j] > lbl[lbl_max_index as usize] {
-                    lbl_max_index = j as u8;
-                }
-        }
-        correct_count += if answer_max_index==lbl_max_index {1} else {0};
+
+        // Calculate loss
+        total_loss += crosss_entropy_error(&y, &tst_lbl_one_hot.index_axis(Axis(0), *i).to_owned()) / test_sampl_size as f64;
+
+        // Calculate rate correct answer rate
+        let y_max_index = max_index_in_arr1(y);
+        let lbl_max_index = max_index_in_arr1(tst_lbl_one_hot.index_axis(Axis(0), *i).to_owned());
+        correct_count += if y_max_index==lbl_max_index {1} else {0};
     }
-    loss = loss / test_sampl_size as f64;
+    // let loss = total_loss / test_sampl_size as f64;
+    let loss = total_loss;
     let correct_rate = correct_count as f64 / test_sampl_size  as f64;
+
+    println!("Loss: {}", loss);
+    println!("CorrectRate: {}%", correct_rate * 100.0);
+    println!("");
 
     return (loss, correct_rate);
 }
 
+fn max_index_in_arr1(arr: Array1<f64>) -> usize {
+    let mut max_index: usize = 0;
+    for i in 0..arr.len() {
+        if arr[i] > arr[max_index as usize] {
+            max_index = i;
+        }
+    }
+    return max_index
+}
 
 #[cfg(test)]
 mod test_mod {
@@ -207,8 +217,11 @@ mod test_mod {
     fn test_random_choice() {
         let a = random_choice(1_000_000, 50);
         assert_eq!(a.len(), 1_000_000);
-        for n in a {
-            assert_eq!( n < 50, true);
+        for n in &a {
+            assert_eq!( *n < 50, true);
         }
+
+        let a = random_choice(50, 50);
+        println!("{:?}", a);
     }
 }

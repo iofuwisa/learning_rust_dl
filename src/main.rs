@@ -19,6 +19,8 @@ use ndarray::prelude::{
     ArrayView
 };
 
+use rand::Rng;
+use std::f64::consts::E;
 use std::time::{Duration, Instant};
 
 const TRN_IMG_SIZE: usize = 5000;
@@ -27,15 +29,13 @@ const TST_IMG_SIZE: usize = 2000;
 
 // Hyper parameter
 const ITERS_NUM: u32 = 10000;
-const MINI_BATCH_SIZE: usize = 20;
-const HIDDEN_LAYOR1_NURON_SIZE: u32 = 20;
-const HIDDEN_LAYOR2_NURON_SIZE: u32 = 20;
-const LEARNING_RATE: f64 = 0.1;
+const MINI_BATCH_SIZE: usize = 10;
+const HIDDEN_LAYOR1_NURON_SIZE: u32 = 10;
+const HIDDEN_LAYOR2_NURON_SIZE: u32 = 10;
+const LEARNING_RATE: f64 = 0.01;
 
 
 fn main(){
-
-    // work(); return;
 
     // Load MNIST
     let mnist = MnistImages::new(TRN_IMG_SIZE as u32, VAL_IMG_SIZE as u32, TST_IMG_SIZE as u32);
@@ -52,7 +52,7 @@ fn main(){
         784,
         vec![
             NeuralNetworkLayorBuilder::new(HIDDEN_LAYOR1_NURON_SIZE, Box::new(&sigmoid_array)),   // hidden1
-            // NeuralNetworkLayorBuilder::new(HIDDEN_LAYOR2_NURON_SIZE, Box::new(&sigmoid_array)),  // hidden2
+            NeuralNetworkLayorBuilder::new(HIDDEN_LAYOR2_NURON_SIZE, Box::new(&sigmoid_array)),  // hidden2
             NeuralNetworkLayorBuilder::new(10, Box::new(&softmax_array)),  // output
         ]
     );
@@ -60,33 +60,36 @@ fn main(){
     network_learning(&mut nn, trn_img, trn_lbl_one_hot, tst_img, tst_lbl_one_hot, ITERS_NUM, LEARNING_RATE, MINI_BATCH_SIZE);
 }
 
-use rand::Rng;
-use std::f64::consts::E;
+#[cfg(test)]
+mod test_mod {
+    use super::*;
 
-fn work() {
+    #[test]
+    #[ignore]
+    fn measure_time_to_execute_log() {
+        let f1 = || {
+            for _ in 0..1_000_000 {
+                let mut rng = rand::thread_rng();
+                rng.gen::<f64>().log(E);
+            }
+        };
+        println!("{}", measure_execute_time(&f1));
 
-    let f1 = || {
-        for _ in 0..1_000_000 {
-            let mut rng = rand::thread_rng();
-            rng.gen::<f64>().log(E);
-        }
-    };
-    println!("{}", measure_execute_time(&f1));
+        let f2 = || {
+            for _ in 0..1_000_000 {
+                let mut rng = rand::thread_rng();
+                E.log(rng.gen::<f64>());
+            }
+        };
+        println!("{}", measure_execute_time(&f1));
+    }
 
-    let f2 = || {
-        for _ in 0..1_000_000 {
-            let mut rng = rand::thread_rng();
-            E.log(rng.gen::<f64>());
-        }
-    };
-    println!("{}", measure_execute_time(&f1));
-}
+    fn measure_execute_time(f: &dyn Fn()) -> u128 {
+        let start = Instant::now();
 
-fn measure_execute_time(f: &dyn Fn()) -> u128 {
-    let start = Instant::now();
+        f();
 
-    f();
-
-    let end = start.elapsed();
-    return end.as_millis();
+        let end = start.elapsed();
+        return end.as_millis();
+    }
 }

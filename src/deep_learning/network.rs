@@ -24,7 +24,7 @@ pub struct NeuralNetwork {
 }
 impl NeuralNetwork {
     pub fn new(input_len: u32, layor_builders: Vec<NeuralNetworkLayorBuilder>) -> NeuralNetwork {
-
+        
         let mut layors = Vec::<NeuralNetworkLayor>::with_capacity(layor_builders.len());
         let mut before_out_len = input_len;
         for mut builder in layor_builders {
@@ -67,6 +67,16 @@ impl NeuralNetwork {
         }
 
         return size;
+    }
+
+    // Calculate total of nn's weight numbers and bias numbers.
+    pub fn get_network_total_tize(&self) -> usize{
+        let mut total_size = 0;
+        let network_size = self.get_network_size();
+        for ((weight_row_size, weight_col_size), bias_size) in &network_size {
+            total_size += weight_row_size * weight_col_size + bias_size;
+        }
+        return total_size;
     }
 
     pub fn update_parameters_add(&mut self, weight: &Vec<Array2<f64>>, bias: &Vec<Array1<f64>>) {
@@ -114,8 +124,8 @@ pub struct NeuralNetworkLayor {
 impl NeuralNetworkLayor {
     pub fn new(input_len: u32, neuron_len: u32, activation_function: Box<&'static (dyn Fn(&Array1<f64>) -> Array1<f64>)>) -> NeuralNetworkLayor {
         let mut rng = rand::thread_rng();
-        let weight:Array2<f64> = Array::from_shape_fn((input_len as usize, neuron_len as usize), |(_, _)| rng.gen::<f64>());
-        let bias:Array1<f64> = Array::from_shape_fn(neuron_len as usize, |_| rng.gen::<f64>());
+        let weight:Array2<f64> = Array::from_shape_fn((input_len as usize, neuron_len as usize), |(_, _)| rng.gen::<f64>()*2.0-1.0);
+        let bias:Array1<f64> = Array::from_shape_fn(neuron_len as usize, |_| (rng.gen::<f64>()*2.0-1.0) / 100.0);
 
         return NeuralNetworkLayor {
             weight: weight,
@@ -238,7 +248,7 @@ mod NeuralNetwork_test {
     }
 
     #[test]
-    fn NeuralNetwork_get_layor_size() {
+    fn NeuralNetwork_get_network_size() {
         let a = NeuralNetwork::new(10, vec![
             NeuralNetworkLayorBuilder::new(80, Box::new(&activation_stub)),
             NeuralNetworkLayorBuilder::new(40, Box::new(&activation_stub)),
@@ -246,7 +256,7 @@ mod NeuralNetwork_test {
         ]);
 
         let a = a.get_network_size();
-
+        
         assert_eq!(
             a,
             vec![
@@ -256,6 +266,25 @@ mod NeuralNetwork_test {
             ]
         );
     }
+
+    #[test]
+    fn NeuralNetwork_get_network_total_size() {
+        let a = NeuralNetwork::new(10, vec![
+            NeuralNetworkLayorBuilder::new(80, Box::new(&activation_stub)),
+            NeuralNetworkLayorBuilder::new(40, Box::new(&activation_stub)),
+            NeuralNetworkLayorBuilder::new(20, Box::new(&activation_stub)),
+        ]);
+
+        let a = a.get_network_total_tize();
+        
+        assert_eq!(
+            a,
+            ((10 * 80) + 80) +
+            ((80 * 40) + 40) +
+            ((40 * 20) + 20)
+        );
+    }
+
 
     fn NeuralNetwork_get_layor_update_parameters_add() {
         let mut a = NeuralNetwork {

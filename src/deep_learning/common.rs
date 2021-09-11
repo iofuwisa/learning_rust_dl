@@ -41,6 +41,15 @@ pub fn numeric_gradient<F: Fn(&Array1<f64>) -> f64>(func: F, x: &Array1<f64>) ->
     return grad;
 }
 
+pub fn print_img(img: &Array1<f64>) {
+    for i in 0..28 {
+        for j in 0..28 {
+            print!("{} ", if img[(i*28+j)] > 0.0 {"*"} else {" "});
+        }
+        println!("");
+    }
+}
+
 #[cfg(test)]
 mod NeuralNetwork_test {
     use super::*;
@@ -63,4 +72,39 @@ mod NeuralNetwork_test {
 
         assert_eq!(grad, arr1(&[0.0, 2.0, 4.0, 6.0, 8.0]));
     }
+
+    
+    #[test]
+    fn test_numeric_gradient2() {
+        
+        // Find minimum below function
+        // y = x[0]^2 + x[1]^2
+
+        let lerning_rate = 0.05;
+
+        let mut x = arr1(&[3.0, 4.0]);
+
+        // y = x[0]^2 + x[1]^2
+        for _ in 0..100 {
+            
+            let f = |diff: &Array1<f64>| -> f64 {
+                let added_x = x.clone() + diff;
+                return added_x[0] * added_x[0] + added_x[1] * added_x[1];
+            };
+
+            println!("Y {}", f(&x));
+            println!("");
+
+            let grad = numeric_gradient(&f, &arr1(&[0.0, 0.0]));
+
+            // Update x
+            x[0] -= grad[0] * 0.05;
+            x[1] -= grad[1] * 0.05;
+            
+            println!("Grad {:?}", grad);
+            println!("X {:?}", x);
+
+        }
+
+    }  
 }
