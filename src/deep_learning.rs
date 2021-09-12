@@ -7,3 +7,5 @@ pub mod common;
 pub mod graph_plotter;
 pub mod network_learning;
 pub mod layers;
+pub mod network_layers;
+pub mod activation_layers;

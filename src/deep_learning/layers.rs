@@ -1,3 +1,4 @@
+
 pub trait Layer {
     fn forward(&mut self) -> f64;
     fn backward(&mut self, dout: f64, diff: Vec<f64>) -> Vec<f64>;
@@ -162,7 +163,6 @@ mod test_mul_mod {
         let mut m3 = MulLayer::new(m1, m2);
 
         let diffs = m3.backward(3.0, Vec::<f64>::new());
-        println!("{:?}", diffs);
         assert_eq!(diffs.len(), 4);
         assert_eq!(diffs[0], 60.0 * 3.0);
         assert_eq!(diffs[1], 24.0 * 3.0);
@@ -203,7 +203,6 @@ mod test_add_mod {
         let mut m3 = AddLayer::new(m1, m2);
 
         let diffs = m3.backward(3.0, Vec::<f64>::new());
-        println!("{:?}", diffs);
         assert_eq!(diffs.len(), 4);
         assert_eq!(diffs[0], 3.0);
         assert_eq!(diffs[1], 3.0);

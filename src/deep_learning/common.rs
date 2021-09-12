@@ -59,6 +59,14 @@ pub fn round_digit(num: f64, digit: i32) -> f64 {
     }
 }
 
+pub fn round_digit_arr1(nums: &Array1<f64>, digit: i32) -> Array1<f64> {
+    if digit == 0 {
+        nums.mapv(|n:f64| -> f64 {n.round()})
+    } else {
+        nums.mapv(|n:f64| -> f64 {(n * 10.0_f64.powi(-digit)).round() * 10.0_f64.powi(digit)})
+    }
+}
+
 pub fn print_img(img: &Array1<f64>) {
     for i in 0..28 {
         for j in 0..28 {
@@ -77,6 +85,13 @@ mod NeuralNetwork_test {
         assert_eq!(round_digit(3.14, 0), 3.0);
         assert_eq!(round_digit(123456.789123, 3), 123000.0);
         assert_eq!(round_digit(123456.789123, -3), 123456.789);
+    }
+
+    #[test]
+    fn test_round_digit_arr1() {
+        assert_eq!(round_digit_arr1(&arr1(&[0.5, 0.12345, 12.0]), 0), arr1(&[1.0, 0.0, 12.0]));
+        assert_eq!(round_digit_arr1(&arr1(&[0.5, 12340.12345, 1852.0]), 2), arr1(&[0.0, 12300.0, 1900.0]));
+        assert_eq!(round_digit_arr1(&arr1(&[0.51, 0.12345, 12.0]), -1), arr1(&[0.5, 0.1, 12.0]));
     }
 
     #[test]
