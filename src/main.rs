@@ -30,8 +30,8 @@ const TST_IMG_SIZE: usize = 2000;
 // Hyper parameter
 const ITERS_NUM: u32 = 10000;
 const MINI_BATCH_SIZE: usize = 10;
-const HIDDEN_LAYOR1_NURON_SIZE: u32 = 10;
-const HIDDEN_LAYOR2_NURON_SIZE: u32 = 10;
+const HIDDEN_LAYER1_NURON_SIZE: u32 = 50;
+const HIDDEN_LAYER2_NURON_SIZE: u32 = 20;
 const LEARNING_RATE: f64 = 0.01;
 
 
@@ -51,9 +51,9 @@ fn main(){
     let mut nn = NeuralNetwork::new(
         784,
         vec![
-            NeuralNetworkLayorBuilder::new(HIDDEN_LAYOR1_NURON_SIZE, Box::new(&sigmoid_array)),   // hidden1
-            NeuralNetworkLayorBuilder::new(HIDDEN_LAYOR2_NURON_SIZE, Box::new(&sigmoid_array)),  // hidden2
-            NeuralNetworkLayorBuilder::new(10, Box::new(&softmax_array)),  // output
+            NeuralNetworkLayerBuilder::new(HIDDEN_LAYER1_NURON_SIZE, Box::new(&sigmoid_array)),   // hidden1
+            NeuralNetworkLayerBuilder::new(HIDDEN_LAYER2_NURON_SIZE, Box::new(&sigmoid_array)),  // hidden2
+            NeuralNetworkLayerBuilder::new(10, Box::new(&softmax_array)),  // output
         ]
     );
 
