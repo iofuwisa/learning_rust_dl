@@ -9,3 +9,4 @@ pub mod network_learning;
 pub mod layers;
 pub mod network_layers;
 pub mod activation_layers;
+pub mod affine_layer;

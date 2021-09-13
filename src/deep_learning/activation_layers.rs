@@ -8,7 +8,6 @@ use ndarray::iter::{
 };
 
 use crate::deep_learning::common::*;
-
 use crate::deep_learning::network_layers::*;
 
 // Relu
