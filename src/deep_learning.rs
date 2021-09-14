@@ -10,3 +10,4 @@ pub mod layers;
 pub mod network_layers;
 pub mod activation_layers;
 pub mod affine_layer;
+pub mod softmax_with_loss;

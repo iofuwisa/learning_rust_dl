@@ -4,9 +4,6 @@ use ndarray::prelude::{
     arr1,
     arr2,
 };
-use ndarray::iter::{
-    Iter,
-};
 
 use crate::deep_learning::common::*;
 use crate::deep_learning::network_layers::*;
@@ -64,9 +61,6 @@ impl<TX: NetworkBatchLayer, TW: NetworkBatchLayer, TB: NetworkBatchLayer> Networ
             let x = self.x.forward();
             let w = self.w.forward();
             let b = self.b.forward();
-            println!("x: {:?}", x);
-            println!("w: {:?}", w);
-            println!("b: {:?}", b);
             self.z = Some(x.dot(w) + b);
         }
         self.z.as_ref().unwrap()
@@ -171,15 +165,15 @@ mod test_affine_mod {
         ));
         assert_eq!(diffs[1], arr2(&
             [
-                [2.4,  0.0],
-                [8.5, 10.0],
+                [-0.6,  -4.0],
+                [ 8.5,  10.0],
             ]
         ));
         assert_eq!(diffs[2], arr2(&
             [
                 [11.0, -18.0, 4.0],
                 [-18.0, 44.0, -12.0],
-            ]
+            ]i
         ));
         assert_eq!(diffs[3], arr2(&
             [
