@@ -51,6 +51,14 @@ pub fn max_index_in_arr1(arr: &Array1<f64>) -> usize {
     return max_index
 }
 
+pub fn sum_arr1(arr: &Array1<f64>) -> f64 {
+    let mut sum = 0.0;
+    for a in arr {
+        sum += a;
+    }
+    return sum;
+}
+
 pub fn round_digit(num: f64, digit: i32) -> f64 {
     if digit == 0 {
         num.round()

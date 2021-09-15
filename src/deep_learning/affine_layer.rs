@@ -173,7 +173,7 @@ mod test_affine_mod {
             [
                 [11.0, -18.0, 4.0],
                 [-18.0, 44.0, -12.0],
-            ]i
+            ]
         ));
         assert_eq!(diffs[3], arr2(&
             [
