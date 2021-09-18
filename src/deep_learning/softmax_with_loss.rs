@@ -35,25 +35,10 @@ impl<TX: NetworkBatchLayer> NetworkBatchLayer for SoftmaxWithLoss<TX> {
         if self.z.is_none() {
             
             let x = self.x.forward();
-            
-            // exp(ak + c)/Σ(exp(ai + c))
-            let z = Array::from_shape_fn(x.dim(), |(i, j)| -> f64 {
 
-                let r = x.index_axis(Axis(0), i).to_owned();
+            let softmax_res = softmax(x);
 
-                // Find max
-                let max_index = max_index_in_arr1(&r);
-                let c = r[max_index];
-
-                // Σ(exp(ai + c)
-                let mut sum_exp_a = 0.0;
-                for ai in &r {
-                    sum_exp_a += E.powf(*ai + c);
-                }
-
-                // exp(ak + c)/Σ(exp(ai + c))
-                return E.powf(r[j] + c) / sum_exp_a;
-            });
+            let z = crosss_entropy_error(&softmax_res, &self.t);
 
             self.z = Some(z);
         }
@@ -69,34 +54,102 @@ impl<TX: NetworkBatchLayer> NetworkBatchLayer for SoftmaxWithLoss<TX> {
     }
 }
 
+fn softmax(x: &Array2<f64>) -> Array2<f64> {
+    // Create Array same shape from x
+    let mut z = Array2::<f64>::zeros(x.dim());
+    // let mut z = x.clone();
+
+    for row_i in 0..x.shape()[0] {
+        // Get row
+        let r = x.index_axis(Axis(0), row_i).to_owned();
+
+        // Find max
+        let max_index = max_index_in_arr1(&r);
+        let max = r[max_index];
+
+        // Σ(exp(ai + c)
+        let mut sum_exp_a = 0.0;
+        for ai in &r {
+            sum_exp_a += E.powf(*ai + max);
+        }
+
+        // exp(ak + c)/Σ(exp(ai + c))
+        for col_i in 0..x.shape()[1] {
+            z[(row_i, col_i)] = E.powf(r[col_i] + max) / sum_exp_a;
+        }
+    }
+    return z;
+}
+
+fn crosss_entropy_error(x: &Array2<f64>, t: &Array2<f64>) -> Array2<f64> {
+    if x.len() != t.len() {
+        panic!("Different shape. x:{:?} t:{:?}", x.shape(), t.shape());
+    }
+
+    // Create Array same len with row len x has
+    let mut z = Array2::<f64>::zeros([x.shape()[0], 1]);
+
+    for row_i in 0..x.shape()[0] {
+        // Get row
+        let x_row = x.index_axis(Axis(0), row_i).to_owned();
+        let t_row = t.index_axis(Axis(0), row_i).to_owned();
+
+        // Find correct label index
+        let correct_index = max_index_in_arr1(&t_row);
+
+        z[(row_i, 0)] = x_row[correct_index].log(E) * -1.0;
+    }
+    return z;
+}
+
 #[cfg(test)]
-mod test_affine_mod {
+mod test_softmax_with_loss_mod {
     use super::*;
 
     #[test]
-    fn test_forward() {
-        let x = NetworkBatchValueLayer::new(arr2(&
+    fn test_softmax() {
+        let x = arr2(&
             [
                 [2.0,   5.0, 3.0,  3.0],
                 [0.0, -10.0, 7.0, 12.0],
             ]
-        ));
+        );
+
+        let softmax_res = softmax(&x);
+
+        // Row0 max index
+        assert_eq!(max_index_in_arr1(&softmax_res.index_axis(Axis(0), 0).to_owned()), 1);
+        // Row0 sum
+        assert_eq!(round_digit(sum_arr1(&softmax_res.index_axis(Axis(0), 0).to_owned()), -4), 1.0);
+        // Row1 max index
+        assert_eq!(max_index_in_arr1(&softmax_res.index_axis(Axis(0), 1).to_owned()), 3);
+        // Row0 sum
+        assert_eq!(round_digit(sum_arr1(&softmax_res.index_axis(Axis(0), 1).to_owned()), -4), 1.0);
+
+    }
+
+    #[test]
+    fn test_crosss_entropy_error() {
+        let x = arr2(&
+            [
+                [0.3, 0.1, 0.5, 0.1],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        );
+
         let t = arr2(&
             [
                 [0.0, 0.0, 1.0, 0.0],
                 [0.0, 0.0, 0.0, 1.0],
             ]
         );
-        let mut a = SoftmaxWithLoss::new(x, t);
 
-        let y = a.forward();
+        let cee_res = crosss_entropy_error(&x, &t);
 
-        assert_eq!(max_index_in_arr1(&y.index_axis(Axis(0), 0).to_owned()), 1);
-        assert_eq!(round_digit(sum_arr1(&y.index_axis(Axis(0), 0).to_owned()), -4), 1.0);
-        assert_eq!(max_index_in_arr1(&y.index_axis(Axis(0), 1).to_owned()), 3);
-        assert_eq!(round_digit(sum_arr1(&y.index_axis(Axis(0), 1).to_owned()), -4), 1.0);
+        assert_eq!(cee_res.shape(), [2, 1]);
+        assert_eq!(cee_res[(0, 0)], (0.5 as f64).log(E) * -1.0);
+        assert_eq!(cee_res[(1, 0)], (1.0 as f64).log(E) * -1.0);
     }
-
     #[test]
     fn test_backward() {
         let x = NetworkBatchValueLayer::new(arr2(&
@@ -111,7 +164,7 @@ mod test_affine_mod {
                 [0.0, 0.0, 0.0, 1.0],
             ]
         );
-        let mut a = SoftmaxWithLoss::new(x, t.clone());
+        let mut softmaxLoss= SoftmaxWithLoss::new(x, t.clone());
 
         let dout = arr2(&
             [
@@ -127,7 +180,7 @@ mod test_affine_mod {
                 ]
             )
         ];
-        let diffs = a.backward(dout.clone(), diffs);
+        let diffs = softmaxLoss.backward(dout.clone(), diffs);
 
         assert_eq!(diffs.len(), 2);
         assert_eq!(diffs[0], arr2(&
@@ -136,7 +189,6 @@ mod test_affine_mod {
                 [1.0, 5.0, 9.0],
             ]
         ));
-        assert_eq!(diffs[1], dout * (a.forward().to_owned() - t));
+        assert_eq!(diffs[1], dout * (softmaxLoss.forward().to_owned() - t));
     }
-
 }
