@@ -17,18 +17,18 @@ pub trait NetworkBatchLayer {
 
 // Direct value
 pub struct NetworkBatchValueLayer {
-    z: Array2<f64>,
+    x: Array2<f64>,
 }
 impl NetworkBatchValueLayer {
-    pub fn new(z: Array2<f64>) -> NetworkBatchValueLayer {
+    pub fn new(x: Array2<f64>) -> NetworkBatchValueLayer {
         NetworkBatchValueLayer {
-            z: z,
+            x: x,
         }
     }
 }
 impl NetworkBatchLayer for NetworkBatchValueLayer {
     fn forward(&mut self) -> &Array2<f64> {
-        &self.z
+        &self.x
     }
     fn backward(&mut self, dout: Array2<f64>, diffs: Vec<Array2<f64>>) -> Vec<Array2<f64>> {
         let mut mut_diffs = diffs;

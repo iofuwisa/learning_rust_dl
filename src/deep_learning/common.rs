@@ -1,6 +1,7 @@
 use ndarray::prelude::{
     Array,
     Array1,
+    Array2,
     arr1,
 };
 
@@ -68,6 +69,14 @@ pub fn round_digit(num: f64, digit: i32) -> f64 {
 }
 
 pub fn round_digit_arr1(nums: &Array1<f64>, digit: i32) -> Array1<f64> {
+    if digit == 0 {
+        nums.mapv(|n:f64| -> f64 {n.round()})
+    } else {
+        nums.mapv(|n:f64| -> f64 {(n * 10.0_f64.powi(-digit)).round() * 10.0_f64.powi(digit)})
+    }
+}
+
+pub fn round_digit_arr2(nums: &Array2<f64>, digit: i32) -> Array2<f64> {
     if digit == 0 {
         nums.mapv(|n:f64| -> f64 {n.round()})
     } else {
