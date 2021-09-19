@@ -19,6 +19,7 @@ impl<T: NetworkBatchLayer> ReluLayer<T> {
             y: None,
         }
     }
+    pub fn get_x(&self) -> &T {&self.x}
 }
 impl<T: NetworkBatchLayer> NetworkBatchLayer for ReluLayer<T> {
     fn forward(&mut self) -> &Array2<f64> {
@@ -49,6 +50,17 @@ impl<T: NetworkBatchLayer> NetworkBatchLayer for ReluLayer<T> {
 
         return diffs;
     }
+    fn set_value(&mut self, value: &Array2<f64>) {
+        self.x.set_value(value);
+        self.clean();
+    }
+    fn set_lbl(&mut self, value: &Array2<f64>) {
+        self.x.set_lbl(value);
+        self.clean();
+    }
+    fn clean(&mut self) {
+        self.y = None;
+    }
 }
 
 
@@ -65,6 +77,7 @@ impl<T: NetworkBatchLayer> SigmoidLayer<T> {
             y: None,
         }
     }
+    pub fn get_x(&self) -> &T {&self.x}
 }
 impl<T: NetworkBatchLayer> NetworkBatchLayer for SigmoidLayer<T> {
     // f(x) =  1 / (1 + exp(-x))
@@ -101,6 +114,17 @@ impl<T: NetworkBatchLayer> NetworkBatchLayer for SigmoidLayer<T> {
         diffs = self.x.backward(dout, diffs);
 
         return diffs;
+    }
+    fn set_value(&mut self, value: &Array2<f64>) {
+        self.x.set_value(value);
+        self.clean();
+    }
+    fn set_lbl(&mut self, value: &Array2<f64>) {
+        self.x.set_lbl(value);
+        self.clean();
+    }
+    fn clean(&mut self) {
+        self.y = None;
     }
 }
 

@@ -29,6 +29,8 @@ impl<TX: NetworkBatchLayer> SoftmaxWithLoss<TX> {
             z: None,
         }
     }
+    pub fn get_x(&self) -> &TX {&self.x}
+    pub fn get_t(&self) -> &Array2<f64> {&self.t}
 }
 impl<TX: NetworkBatchLayer> NetworkBatchLayer for SoftmaxWithLoss<TX> {
     fn forward(&mut self) -> &Array2<f64> {
@@ -51,6 +53,21 @@ impl<TX: NetworkBatchLayer> NetworkBatchLayer for SoftmaxWithLoss<TX> {
         let diffs = self.x.backward(d, diffs);
 
         return diffs;
+    }
+    fn set_value(&mut self, value: &Array2<f64>) {
+        self.x.set_value(value);
+        self.clean();
+    }
+    fn set_lbl(&mut self, value: &Array2<f64>) {
+        if self.t.shape() != value.shape() {
+            panic!("Different shape. self.t: {:?} value:{:?}", self.t.shape(), value.shape());
+        }
+        self.t.assign(value);
+        self.x.set_lbl(value);
+        self.clean();
+    }
+    fn clean(&mut self) {
+        self.z = None;
     }
 }
 
