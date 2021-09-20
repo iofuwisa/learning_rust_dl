@@ -29,15 +29,14 @@ impl<T: NetworkBatchLayer> NetworkBatchLayer for ReluLayer<T> {
         }
         return self.y.as_ref().unwrap();
     }
-    fn backward(&mut self, dout: Array2<f64>, diffs: Vec<Array2<f64>>) -> Vec<Array2<f64>> {
+    fn backward(&mut self, dout: Array2<f64>, learning_rate: f64) {
         let x = self.x.forward();
         if dout.shape() != x.shape() {
             panic!("Different shape. dout: {:?} x: {:?}", dout.shape(), x.shape());
         }
 
-        let mut diffs = diffs;
         let mut iter_dout = dout.iter();
-        let dout = x.mapv(|n: f64| -> f64 {
+        let dx = x.mapv(|n: f64| -> f64 {
             let d = iter_dout.next().unwrap();
             if n > 0.0 {    // z = x (x > 0)
                 *d
@@ -46,9 +45,7 @@ impl<T: NetworkBatchLayer> NetworkBatchLayer for ReluLayer<T> {
             }
         });
 
-        diffs = self.x.backward(dout, diffs);
-
-        return diffs;
+        self.x.backward(dx, learning_rate);
     }
     fn set_value(&mut self, value: &Array2<f64>) {
         self.x.set_value(value);
@@ -97,23 +94,20 @@ impl<T: NetworkBatchLayer> NetworkBatchLayer for SigmoidLayer<T> {
         return self.y.as_ref().unwrap();
     }
     // f(x)' = (1 - f(x)) f(x)
-    fn backward(&mut self, dout: Array2<f64>, diffs: Vec<Array2<f64>>) -> Vec<Array2<f64>> {
+    fn backward(&mut self, dout: Array2<f64>, learning_rate: f64) {
         let fx = self.forward();
         if dout.shape() != fx.shape() {
             panic!("Different shape. dout: {:?} fx:{:?}", dout.shape(), fx.shape());
         }
 
-        let mut diffs = diffs;
         let mut iter_dout = dout.iter();
-        let dout = fx.mapv(|n: f64| -> f64 {
+        let dx = fx.mapv(|n: f64| -> f64 {
             let d = iter_dout.next().unwrap();
             // (1 - f(x)) f(x)
             return d * (1.0 - n) * n
         });
 
-        diffs = self.x.backward(dout, diffs);
-
-        return diffs;
+        self.x.backward(dx, learning_rate);
     }
     fn set_value(&mut self, value: &Array2<f64>) {
         self.x.set_value(value);

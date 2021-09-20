@@ -44,15 +44,19 @@ impl<TX: NetworkBatchLayer> NetworkBatchLayer for SoftmaxWithLoss<TX> {
 
             self.z = Some(z);
         }
+        // println!("soft for:\n{:?}", self.z.as_ref().unwrap());
         self.z.as_ref().unwrap()
     }
-    fn backward(&mut self, dout: Array2<f64>, diffs: Vec<Array2<f64>>) -> Vec<Array2<f64>> {
-        // y - t
-        let d = dout * (self.forward().to_owned() - &self.t);
+    fn forward_skip_loss(&mut self) -> &Array2<f64> {
+        self.x.forward_skip_loss()
+    }
+    fn backward(&mut self, dout: Array2<f64>, learning_rate: f64) {
+        let x = self.x.forward();
+        let softmax_res = softmax(x);
 
-        let diffs = self.x.backward(d, diffs);
+        let dx = dout * (softmax_res - &self.t);
 
-        return diffs;
+        self.x.backward(dx, learning_rate);
     }
     fn set_value(&mut self, value: &Array2<f64>) {
         self.x.set_value(value);
@@ -78,7 +82,20 @@ fn softmax(x: &Array2<f64>) -> Array2<f64> {
 
     for row_i in 0..x.shape()[0] {
         // Get row
-        let r = x.index_axis(Axis(0), row_i).to_owned();
+        let mut r = x.index_axis(Axis(0), row_i).to_owned();
+
+        // INFINITY and NaN measure( 0 <= r < 100)
+        // MIN
+        let min_index = max_index_in_arr1(&(&r*-1.0));
+        if r[min_index] < 0.0 {
+            r += r[min_index] * -1.0;
+        }
+        // MAX
+        let max_index = max_index_in_arr1(&r);
+        let max = r[max_index];
+        if max > 100.0 {
+            r *= 100.0 / max;
+        }
 
         // Find max
         let max_index = max_index_in_arr1(&r);
@@ -88,11 +105,24 @@ fn softmax(x: &Array2<f64>) -> Array2<f64> {
         let mut sum_exp_a = 0.0;
         for ai in &r {
             sum_exp_a += E.powf(*ai + max);
+            if E.powf(*ai + max).is_infinite() {
+                println!("INFINITY soft exp_a. ai:{}, max:{}", *ai, max);
+            }
+            if E.powf(*ai + max).is_nan() {
+                println!("Nan soft exp_a. ai:{}, max:{}", *ai, max);
+            }
         }
 
         // exp(ak + c)/Σ(exp(ai + c))
         for col_i in 0..x.shape()[1] {
             z[(row_i, col_i)] = E.powf(r[col_i] + max) / sum_exp_a;
+            if z[(row_i, col_i)].is_infinite() {
+                println!("INFINITY sof exp(ak + c)/Σ(exp(ai + c)). r[col_i]: {} max:{}, sum:{}", r[col_i], max, sum_exp_a);
+            }
+            if z[(row_i, col_i)].is_nan() {
+                println!("NaN sof exp(ak + c)/Σ(exp(ai + c)). r[col_i]: {} max:{}, sum:{}", r[col_i], max, sum_exp_a);
+                println!("row: {:?}", r);
+            }
         }
     }
     return z;
@@ -108,13 +138,20 @@ fn crosss_entropy_error(x: &Array2<f64>, t: &Array2<f64>) -> Array2<f64> {
 
     for row_i in 0..x.shape()[0] {
         // Get row
-        let x_row = x.index_axis(Axis(0), row_i).to_owned();
+        // INFINITY measure( 0 < x_row)
+        let x_row = x.index_axis(Axis(0), row_i).to_owned() + 0.00000001;
         let t_row = t.index_axis(Axis(0), row_i).to_owned();
 
         // Find correct label index
         let correct_index = max_index_in_arr1(&t_row);
 
         z[(row_i, 0)] = x_row[correct_index].log(E) * -1.0;
+        if x_row[correct_index].log(E).is_infinite() {
+            println!("INFINITY cross. x_row[correct_index]:{}", x_row[correct_index]);
+        }
+        if x_row[correct_index].log(E).is_nan() {
+            println!("NAN cross. x_row[correct_index]:{}", x_row[correct_index]);
+        }
     }
     return z;
 }

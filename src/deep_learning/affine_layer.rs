@@ -2,6 +2,8 @@ use ndarray::prelude::{
     Array,
     Array1,
     Array2,
+    ArrayView1,
+    Axis,
     arr1,
     arr2,
 };
@@ -13,10 +15,17 @@ use crate::deep_learning::network_layers::*;
 
 pub trait NetworkBatchLayer {
     fn forward(&mut self) -> &Array2<f64>;
-    fn backward(&mut self, dout: Array2<f64>, diffs: Vec<Array2<f64>>) -> Vec<Array2<f64>>;
+    fn forward_skip_loss(&mut self) -> &Array2<f64> {self.forward()}
+    fn backward(&mut self, dout: Array2<f64>, learning_rate: f64);
     fn set_value(&mut self, value: &Array2<f64>);
     fn set_lbl(&mut self, value: &Array2<f64>);
     fn clean(&mut self);
+}
+
+impl NetworkBatchLayer {
+    fn is_loss_layer(&self) -> bool {
+        false
+    }
 }
 
 
@@ -39,10 +48,8 @@ impl NetworkBatchLayer for NetworkBatchValueLayer {
     fn forward(&mut self) -> &Array2<f64> {
         &self.value
     }
-    fn backward(&mut self, dout: Array2<f64>, diffs: Vec<Array2<f64>>) -> Vec<Array2<f64>> {
-        let mut mut_diffs = diffs;
-        mut_diffs.push(dout);
-        return mut_diffs;
+    fn backward(&mut self, dout: Array2<f64>, learning_rate: f64) {
+        // Nothing to do
     }
     fn set_value(&mut self, value: &Array2<f64>) {
         if self.value.shape() != value.shape() {
@@ -58,6 +65,45 @@ impl NetworkBatchLayer for NetworkBatchValueLayer {
     }
 }
 
+// Affine value(weight and bias)
+pub struct NetworkBatchAffineValueLayer {
+    value: Array2<f64>,
+}
+impl NetworkBatchAffineValueLayer {
+    pub fn new(value: Array2<f64>) -> NetworkBatchAffineValueLayer {
+        // println!("init value:\n{:?}\n\n", value);
+        NetworkBatchAffineValueLayer {
+            value: value,
+        }
+    }
+    pub fn new_from_len(row_len: usize, col_len: usize) -> NetworkBatchAffineValueLayer {
+        return NetworkBatchAffineValueLayer::new(Array2::<f64>::zeros((row_len, col_len)))
+    }
+    pub fn get_value(&self) -> &Array2<f64> {&self.value}
+}
+impl NetworkBatchLayer for NetworkBatchAffineValueLayer {
+    fn forward(&mut self) -> &Array2<f64> {
+        &self.value
+    }
+    fn backward(&mut self, dout: Array2<f64>, learning_rate: f64) {
+        // println!("dout:\n{:?}", dout);
+        self.value = &self.value - (dout * learning_rate);
+        // println!("value:\n{:?}", self.value);
+        // println!("\n\n");
+    }
+    fn set_value(&mut self, value: &Array2<f64>) {
+        if self.value.shape() != value.shape() {
+            panic!("Different shape. self.value: {:?} value:{:?}", self.value.shape(), value.shape());
+        }
+        self.value.assign(value);
+    }
+    fn set_lbl(&mut self, _value: &Array2<f64>) {
+        // Nothing to do
+    }
+    fn clean(&mut self) {
+        // Nothing to do
+    }
+}
 
 // Affine
 pub struct AffineLayer<TX: NetworkBatchLayer, TW: NetworkBatchLayer, TB: NetworkBatchLayer> {
@@ -79,19 +125,19 @@ impl<TX: NetworkBatchLayer, TW: NetworkBatchLayer, TB: NetworkBatchLayer> Affine
     pub fn get_w(&self) -> &TW {&self.w}
     pub fn get_b(&self) -> &TB {&self.b}
 }
-impl<TX: NetworkBatchLayer> AffineLayer<TX, NetworkBatchValueLayer, NetworkBatchValueLayer> {
+impl<TX: NetworkBatchLayer> AffineLayer<TX, NetworkBatchAffineValueLayer, NetworkBatchAffineValueLayer> {
     pub fn new_random(x: TX, input_len: usize, neuron_len: usize)
-            -> AffineLayer<TX, NetworkBatchValueLayer, NetworkBatchValueLayer> {
+            -> AffineLayer<TX, NetworkBatchAffineValueLayer, NetworkBatchAffineValueLayer> {
         let mut rng = rand::thread_rng();
 
         // Generate initialize weight and biasn by random.
         // -1.0 <= weight < 1.0
-        let affine_weight = NetworkBatchValueLayer::new(Array2::<f64>::from_shape_fn(
+        let affine_weight = NetworkBatchAffineValueLayer::new(Array2::<f64>::from_shape_fn(
             (input_len as usize, neuron_len as usize),
             |(_, _)| rng.gen::<f64>()*2.0-1.0
         ));
         // -0.01 <= bias < 0.01
-        let affine_bias = NetworkBatchValueLayer::new(Array2::from_shape_fn(
+        let affine_bias = NetworkBatchAffineValueLayer::new(Array2::from_shape_fn(
             (1, neuron_len as usize),
             |_| (rng.gen::<f64>()*2.0-1.0) / 100.0
         ));
@@ -110,18 +156,24 @@ impl<TX: NetworkBatchLayer, TW: NetworkBatchLayer, TB: NetworkBatchLayer>
         }
         self.z.as_ref().unwrap()
     }
-    fn backward(&mut self, dout: Array2<f64>, diffs: Vec<Array2<f64>>) -> Vec<Array2<f64>> {
-        let mut mut_diffs = diffs;
-
+    fn backward(&mut self, dout: Array2<f64>, learning_rate: f64) {
         let w_t = self.w.forward().t();
-        mut_diffs.push(dout.dot(&w_t));
+        let dx = dout.dot(&w_t);
+        self.x.backward(dx, learning_rate);
 
         let x_t = self.x.forward().t();
-        mut_diffs.push(x_t.dot(&dout));
+        let dw = x_t.dot(&dout);
+        self.w.backward(dw, learning_rate);
 
-        mut_diffs.push(self.b.forward() * dout);
-
-        return mut_diffs;
+        let mut db = Array2::<f64>::zeros((1, dout.shape()[1]));
+        for col_i in 0..dout.shape()[1] {
+            let mut sum = 0.0;
+            for row_i in 0..dout.shape()[0] {
+                sum += dout[(row_i, col_i)];
+            }
+            db[(0, col_i)] = sum / dout.shape()[1] as f64;
+        }
+        self.b.backward(db, learning_rate);
     }
     fn set_value(&mut self, value: &Array2<f64>) {
         self.x.set_value(value);

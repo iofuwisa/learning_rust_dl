@@ -111,18 +111,6 @@ fn parse_weight_bias_from_arr1(value: &Array1<f64>, network_size: &Vec<((usize, 
     return (weight, bias);
 }
 
-pub fn random_choice(size: usize, max: usize) -> Vec<usize> {
-    let mut rng = rand::thread_rng();
-
-    let mut choice = Vec::<usize>::with_capacity(size as usize);
-    for i in 0..size {
-        choice.push((rng.gen::<f32>()*max as f32).floor() as usize);
-        // choice.push(i);
-    }
-    
-    return choice;
-}
-
 fn test(network: &NeuralNetwork, tst_data: &Array2<f64>, tst_lbl_one_hot: &Array2<f64>) -> (f64, f64) {
     let test_sampl_size = 1000;
     // let test_sampl_size = 100;
@@ -203,17 +191,5 @@ mod test_mod {
         assert_eq!(bias, bias_expect);
         
 
-    }
-
-    #[test]
-    fn test_random_choice() {
-        let a = random_choice(1_000_000, 50);
-        assert_eq!(a.len(), 1_000_000);
-        for n in &a {
-            assert_eq!( *n < 50, true);
-        }
-
-        let a = random_choice(50, 50);
-        println!("{:?}", a);
     }
 }
