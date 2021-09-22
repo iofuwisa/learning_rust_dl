@@ -1,5 +1,6 @@
 use std::f64::consts::E;
 use ndarray::prelude::{
+    arr2,
     Array2,
 };
 
@@ -8,26 +9,27 @@ use crate::deep_learning::affine_layer::*;
 // Relu
 // y = x (x > 0)
 // y = 0 (x <= 0)
-pub struct ReluLayer<T: NetworkBatchLayer> {
-    x: T,
+pub struct ReluLayer {
+    x: Box<dyn NetworkBatchLayer>,
     y: Option<Array2<f64>>, 
 }
-impl<T: NetworkBatchLayer> ReluLayer<T> {
-    pub fn new(x: T) -> ReluLayer<T> {
+impl ReluLayer {
+    pub fn new<TX>(x: TX) -> ReluLayer
+        where TX: NetworkBatchLayer + 'static {
         ReluLayer {
-            x: x,
+            x: Box::new(x),
             y: None,
         }
     }
-    pub fn get_x(&self) -> &T {&self.x}
+    pub fn get_x(&self) -> &Box<dyn NetworkBatchLayer> {&self.x}
 }
-impl<T: NetworkBatchLayer> NetworkBatchLayer for ReluLayer<T> {
-    fn forward(&mut self) -> &Array2<f64> {
+impl NetworkBatchLayer for ReluLayer {
+    fn forward(&mut self) -> Array2<f64> {
         if self.y.is_none() {
             let x = self.x.forward();
             self.y = Some(x.mapv(|n: f64| -> f64{if n > 0.0 {n} else {0.0}}));
         }
-        return self.y.as_ref().unwrap();
+        return self.y.clone().unwrap();
     }
     fn backward(&mut self, dout: Array2<f64>, learning_rate: f64) {
         let x = self.x.forward();
@@ -63,22 +65,23 @@ impl<T: NetworkBatchLayer> NetworkBatchLayer for ReluLayer<T> {
 
 // Sigmoid
 // y = 1 / (1 + exp(-x))
-pub struct SigmoidLayer<T: NetworkBatchLayer> {
-    x: T,
+pub struct SigmoidLayer {
+    x: Box<dyn NetworkBatchLayer>,
     y: Option<Array2<f64>>,
 }
-impl<T: NetworkBatchLayer> SigmoidLayer<T> {
-    pub fn new(x: T) -> SigmoidLayer<T> {
+impl SigmoidLayer {
+    pub fn new<TX>(x: TX) -> SigmoidLayer
+    where TX: NetworkBatchLayer + 'static {
         SigmoidLayer {
-            x: x,
+            x: Box::new(x),
             y: None,
         }
     }
-    pub fn get_x(&self) -> &T {&self.x}
+    pub fn get_x(&self) -> &Box<dyn NetworkBatchLayer> {&self.x}
 }
-impl<T: NetworkBatchLayer> NetworkBatchLayer for SigmoidLayer<T> {
+impl NetworkBatchLayer for SigmoidLayer {
     // f(x) =  1 / (1 + exp(-x))
-    fn forward(&mut self) -> &Array2<f64> {
+    fn forward(&mut self) -> Array2<f64> {
         if self.y.is_none() {
             // -x
             let x = self.x.forward() * -1.0;
@@ -91,7 +94,7 @@ impl<T: NetworkBatchLayer> NetworkBatchLayer for SigmoidLayer<T> {
 
             self.y = Some(y);
         }
-        return self.y.as_ref().unwrap();
+        return self.y.clone().unwrap();
     }
     // f(x)' = (1 - f(x)) f(x)
     fn backward(&mut self, dout: Array2<f64>, learning_rate: f64) {
@@ -167,15 +170,7 @@ mod test_relu_mod {
             ]
         );
 
-        let diffs = relu.backward(dout, Vec::<Array2<f64>>::new());
-
-        assert_eq!(diffs.len(), 1);
-        assert_eq!(diffs[0], arr2(&
-            [
-                [1.0, 0.0, 0.0],
-                [4.0, 5.0, 0.0],
-            ]
-        ));
+        relu.backward(dout, 0.01);
     }
 }
 
@@ -210,12 +205,14 @@ mod test_sigmoid_mod {
 
     #[test]
     fn test_backward() {
-        let value = NetworkBatchValueLayer::new(arr2(&
+        let arr2_value = arr2(&
             [
                 [2.0, -3.0, 0.0],
                 [1.0, 0.1, -0.1],
             ]
-        ));
+        );
+        // Use NetworkBatchAffineValueLayer to check side effects
+        let value = NetworkBatchAffineValueLayer::new(arr2_value.clone());
         let mut sigmoid = SigmoidLayer::new(value);
         let dout = arr2(&
             [
@@ -224,15 +221,12 @@ mod test_sigmoid_mod {
             ]
         );
 
-        let diffs = sigmoid.backward(dout.clone(), Vec::<Array2<f64>>::new());
+        sigmoid.backward(dout.clone(), 0.01);
 
-        assert_eq!(diffs.len(), 1);
-        let sigmoid_diff = arr2(&
-            [
-                [0.10501362071, 0.04517665972, 0.25],
-                [0.19661193324, 0.24937604019, 0.24937600585],
-            ]
+        assert_eq!(
+            round_digit_arr2(&sigmoid.x.forward(), -4),
+            // (1 - f(x)) f(x)
+            round_digit_arr2(&(arr2_value.clone()-(((1.0-sigmoid.forward())*sigmoid.forward())*dout*0.01)), -4)
         );
-        assert_eq!(round_digit_arr2(&diffs[0], -4), round_digit_arr2(&(dout*sigmoid_diff), -4));
     } 
 }

@@ -16,43 +16,45 @@ use crate::deep_learning::common::*;
 
 
 // Softmax with loss
-pub struct SoftmaxWithLoss<TX: NetworkBatchLayer> {
-    x: TX,
+pub struct SoftmaxWithLoss {
+    x: Box<dyn NetworkBatchLayer>,
     t: Array2<f64>,
     z: Option<Array2<f64>>, 
 }
-impl<TX: NetworkBatchLayer> SoftmaxWithLoss<TX> {
-    pub fn new(x: TX, t: Array2<f64>) -> SoftmaxWithLoss<TX> {
+impl SoftmaxWithLoss {
+    pub fn new<TX>(x: TX, t: Array2<f64>) -> SoftmaxWithLoss
+    where TX: NetworkBatchLayer + 'static
+    {
         SoftmaxWithLoss {
-            x: x,
+            x: Box::new(x),
             t: t,
             z: None,
         }
     }
-    pub fn get_x(&self) -> &TX {&self.x}
+    pub fn get_x(&self) -> &Box<dyn NetworkBatchLayer> {&self.x}
     pub fn get_t(&self) -> &Array2<f64> {&self.t}
 }
-impl<TX: NetworkBatchLayer> NetworkBatchLayer for SoftmaxWithLoss<TX> {
-    fn forward(&mut self) -> &Array2<f64> {
+impl NetworkBatchLayer for SoftmaxWithLoss {
+    fn forward(&mut self) -> Array2<f64> {
         if self.z.is_none() {
             
             let x = self.x.forward();
 
-            let softmax_res = softmax(x);
+            let softmax_res = softmax(&x);
 
             let z = crosss_entropy_error(&softmax_res, &self.t);
 
             self.z = Some(z);
         }
         // println!("soft for:\n{:?}", self.z.as_ref().unwrap());
-        self.z.as_ref().unwrap()
+        self.z.clone().unwrap()
     }
-    fn forward_skip_loss(&mut self) -> &Array2<f64> {
+    fn forward_skip_loss(&mut self) -> Array2<f64> {
         self.x.forward_skip_loss()
     }
     fn backward(&mut self, dout: Array2<f64>, learning_rate: f64) {
         let x = self.x.forward();
-        let softmax_res = softmax(x);
+        let softmax_res = softmax(&x);
 
         let dx = dout * (softmax_res - &self.t);
 
@@ -201,17 +203,19 @@ mod test_softmax_with_loss_mod {
         let cee_res = crosss_entropy_error(&x, &t);
 
         assert_eq!(cee_res.shape(), [2, 1]);
-        assert_eq!(cee_res[(0, 0)], (0.5 as f64).log(E) * -1.0);
-        assert_eq!(cee_res[(1, 0)], (1.0 as f64).log(E) * -1.0);
+        assert_eq!(round_digit(cee_res[(0, 0)], -4) , round_digit((0.5 as f64).log(E) * -1.0, -4));
+        assert_eq!(round_digit(cee_res[(1, 0)], -4), round_digit((1.0 as f64).log(E) * -1.0, -4));
     }
     #[test]
     fn test_backward() {
-        let x = NetworkBatchValueLayer::new(arr2(&
+        let arr2_x = arr2(&
             [
                 [2.0,   5.0, 3.0,  3.0],
                 [0.0, -10.0, 7.0, 12.0],
             ]
-        ));
+        );
+        // Use NetworkBatchAffineValueLayer to check side effects
+        let x = NetworkBatchAffineValueLayer::new(arr2_x.clone());
         let t = arr2(&
             [
                 [0.0, 0.0, 1.0, 0.0],
@@ -226,23 +230,12 @@ mod test_softmax_with_loss_mod {
                 [0.0,  1.0, 2.0,  0.0],
             ]
         );
-        let diffs = vec![
-            arr2(&
-                [
-                    [3.0, 1.0, 4.0],
-                    [1.0, 5.0, 9.0],
-                ]
-            )
-        ];
-        let diffs = softmaxLoss.backward(dout.clone(), diffs);
 
-        assert_eq!(diffs.len(), 2);
-        assert_eq!(diffs[0], arr2(&
-            [
-                [3.0, 1.0, 4.0],
-                [1.0, 5.0, 9.0],
-            ]
-        ));
-        assert_eq!(diffs[1], dout * (softmaxLoss.forward().to_owned() - t));
+        softmaxLoss.backward(dout.clone(), 0.01);
+
+        assert_eq!(
+            round_digit_arr2(&softmaxLoss.x.forward(), -4),
+            round_digit_arr2(&(arr2_x.clone()-((softmax(&arr2_x)-t)*dout*0.01)), -4)
+        );
     }
 }
