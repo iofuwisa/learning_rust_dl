@@ -1,33 +1,22 @@
 pub mod deep_learning;
 
 // use crate::deep_learning::logical_operators::*;
-use crate::deep_learning::activation_functions::*;
-use crate::deep_learning::loss_functions::*;
+// use crate::deep_learning::activation_functions::*;
+// use crate::deep_learning::loss_functions::*;
 // use crate::deep_learning::network::*;
 use crate::deep_learning::mnist::*;
-use crate::deep_learning::common::*;
-use crate::deep_learning::graph_plotter::*;
-use crate::deep_learning::network_learning::*;
+// use crate::deep_learning::common::*;
+// use crate::deep_learning::graph_plotter::*;
+// use crate::deep_learning::network_learning::*;
 use crate::deep_learning::softmax_with_loss::*;
 use crate::deep_learning::affine_layer::*;
 use crate::deep_learning::activation_layers::*;
 use crate::deep_learning::neural_network::*;
-use crate::deep_learning::neural_network_learning::*;
+// use crate::deep_learning::neural_network_learning::*;
 
 use ndarray::prelude::{
-    Array,
-    Array1,
     Array2,
-    arr1,
-    arr2,
-    s,
-    Axis,
-    ArrayView
 };
-
-use rand::Rng;
-use std::f64::consts::E;
-use std::time::{Duration, Instant};
 
 const TRN_IMG_SIZE: usize = 5000;
 const VAL_IMG_SIZE: usize = 1;
@@ -42,7 +31,7 @@ const LEARNING_RATE: f64 = 0.001;
 fn main(){
 
     // Load MNIST
-    let mnist = MnistImages::new(TRN_IMG_SIZE as u32, VAL_IMG_SIZE as u32, TST_IMG_SIZE as u32);
+    let mnist = MnistImages::new(TRN_IMG_SIZE, VAL_IMG_SIZE, TST_IMG_SIZE);
     let trn_img = mnist.get_trn_img();
     let trn_lbl = mnist.get_trn_lbl();
     let trn_lbl_onehot = mnist.get_trn_lbl_one_hot();
@@ -81,25 +70,7 @@ fn main(){
 mod test_mod {
     use super::*;
 
-    #[test]
-    #[ignore]
-    fn measure_time_to_execute_log() {
-        let f1 = || {
-            for _ in 0..1_000_000 {
-                let mut rng = rand::thread_rng();
-                rng.gen::<f64>().log(E);
-            }
-        };
-        println!("{}", measure_execute_time(&f1));
-
-        let f2 = || {
-            for _ in 0..1_000_000 {
-                let mut rng = rand::thread_rng();
-                E.log(rng.gen::<f64>());
-            }
-        };
-        println!("{}", measure_execute_time(&f1));
-    }
+    use std::time::Instant;
 
     fn measure_execute_time(f: &dyn Fn()) -> u128 {
         let start = Instant::now();

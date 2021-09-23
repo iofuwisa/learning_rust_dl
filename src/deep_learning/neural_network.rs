@@ -1,7 +1,6 @@
 use ndarray::prelude::{
     Axis,
     Array2,
-    arr2,
 };
 
 use crate::deep_learning::common::*;
@@ -151,6 +150,10 @@ fn make_minibatch_data(minibatch_size: usize, data: &Array2<f64>, lbl_onehot: &A
 #[cfg(test)]
 mod test_neuaral_network {
     use super::*;
+
+    use ndarray::prelude::{
+        arr2,
+    };
 
     #[test]
     fn test_set_input() {

@@ -1,15 +1,8 @@
 use std::f64::consts::E;
 use ndarray::prelude::{
-    Array,
-    Array1,
     Array2,
-    ArrayView1,
-    arr1,
-    arr2,
-    s,
 };
 use ndarray::Axis;
-use ndarray::Dim;
 
 use crate::deep_learning::affine_layer::*;
 use crate::deep_learning::common::*;
@@ -161,6 +154,10 @@ fn crosss_entropy_error(x: &Array2<f64>, t: &Array2<f64>) -> Array2<f64> {
 #[cfg(test)]
 mod test_softmax_with_loss_mod {
     use super::*;
+
+    use ndarray::prelude::{
+        arr2,
+    };
 
     #[test]
     fn test_softmax() {

@@ -19,24 +19,24 @@ const IMG_ROWS: usize = 28;
 const IMG_COLS: usize = 28;
 
 pub struct MnistImages {
-    trn_img_size: u32,
+    trn_img_size: usize,
     trn_lbl: Vec<u8>,
     trn_lbl_one_hot: Array2<f64>,
     trn_img: Array2<f64>,
 
-    val_img_size: u32,
+    val_img_size: usize,
     val_lbl: Vec<u8>,
     val_lbl_one_hot: Array2<f64>,
     val_img: Array2<f64>,
 
-    tst_img_size: u32,
+    tst_img_size: usize,
     tst_lbl: Vec<u8>,
     tst_lbl_one_hot: Array2<f64>,
     tst_img: Array2<f64>,
 }
 
 impl MnistImages {
-    pub fn new(trn_img_size: u32, val_img_size: u32, tst_img_size: u32) -> MnistImages {
+    pub fn new(trn_img_size: usize, val_img_size: usize, tst_img_size: usize) -> MnistImages {
         println!("Start loading mnist.");
 
         // Deconstruct the returned Mnist struct.
@@ -50,9 +50,9 @@ impl MnistImages {
             tst_lbl: tst_lbl_one_hot
         } = MnistBuilder::new()
             .label_format_one_hot()
-            .training_set_length(trn_img_size)
-            .validation_set_length(val_img_size)
-            .test_set_length(tst_img_size)
+            .training_set_length(trn_img_size as u32)
+            .validation_set_length(val_img_size as u32)
+            .test_set_length(tst_img_size as u32)
             .finalize();
 
         println!("Setup trn img.");
@@ -123,17 +123,17 @@ impl MnistImages {
         );
     }
 
-    pub fn get_trn_img_size(&self) -> u32 { self.trn_img_size }
+    pub fn get_trn_img_size(&self) -> usize { self.trn_img_size }
     pub fn get_trn_lbl(&self) -> &Vec<u8> { &(self.trn_lbl) }
     pub fn get_trn_lbl_one_hot(&self) -> &Array2<f64> { &(self.trn_lbl_one_hot) }
     pub fn get_trn_img(&self) -> &Array2<f64> { &(self.trn_img) }
     
-    pub fn get_val_img_size(&self) -> u32 { self.val_img_size }
+    pub fn get_val_img_size(&self) -> usize { self.val_img_size }
     pub fn get_val_lbl(&self) -> &Vec<u8> { &(self.val_lbl) }
     pub fn get_val_lbl_one_hot(&self) -> &Array2<f64> { &(self.val_lbl_one_hot) }
     pub fn get_val_img(&self) -> &Array2<f64> { &(self.val_img) }
     
-    pub fn get_tst_img_size(&self) -> u32 { self.tst_img_size }
+    pub fn get_tst_img_size(&self) -> usize { self.tst_img_size }
     pub fn get_tst_lbl(&self) -> &Vec<u8> { &(self.tst_lbl) }
     pub fn get_tst_lbl_one_hot(&self) -> &Array2<f64> { &(self.tst_lbl_one_hot) }
     pub fn get_tst_img(&self) -> &Array2<f64> { &(self.tst_img) }
@@ -147,7 +147,7 @@ fn print_img_and_lbl() {
     let VAL_IMG_SIZE: usize = 1;
     let TST_IMG_SIZE: usize = 2000;
 
-    let mnist = MnistImages::new(TRN_IMG_SIZE as u32, VAL_IMG_SIZE as u32, TST_IMG_SIZE as u32);
+    let mnist = MnistImages::new(TRN_IMG_SIZE, VAL_IMG_SIZE, TST_IMG_SIZE);
     let trn_img = mnist.get_trn_img();
     let trn_lbl = mnist.get_trn_lbl();
     let trn_lbl_one_hot = mnist.get_trn_lbl_one_hot();

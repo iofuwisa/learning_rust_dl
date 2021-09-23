@@ -13,3 +13,4 @@ pub mod affine_layer;
 pub mod softmax_with_loss;
 pub mod neural_network;
 pub mod neural_network_learning;
+pub mod optimizer;

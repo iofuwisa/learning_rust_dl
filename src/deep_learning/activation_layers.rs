@@ -1,6 +1,5 @@
 use std::f64::consts::E;
 use ndarray::prelude::{
-    arr2,
     Array2,
 };
 
@@ -129,8 +128,8 @@ impl NetworkBatchLayer for SigmoidLayer {
 #[cfg(test)]
 mod test_relu_mod {
     use super::*;
+
     use ndarray::prelude::{
-        Array2,
         arr2,
     };
 
@@ -179,7 +178,6 @@ mod test_sigmoid_mod {
     use super::*;
     use crate::deep_learning::common::*;
     use ndarray::prelude::{
-        Array2,
         arr2,
     };
 

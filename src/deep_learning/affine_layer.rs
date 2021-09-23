@@ -1,33 +1,17 @@
 use ndarray::prelude::{
-    Array,
-    Array1,
     Array2,
-    ArrayView1,
-    Axis,
-    arr1,
-    arr2,
 };
 use rand::Rng;
-
-use crate::deep_learning::common::*;
-use crate::deep_learning::network_layers::*;
-
 
 pub trait NetworkBatchLayer {
     fn forward(&mut self) -> Array2<f64>;
     fn forward_skip_loss(&mut self) -> Array2<f64> {self.forward()}
-    fn backward(&mut self, dout: Array2<f64>, learning_rate: f64);
+    fn backward(&mut self, _dout: Array2<f64>, _learning_rate: f64) {}
     fn set_value(&mut self, value: &Array2<f64>);
     fn set_lbl(&mut self, value: &Array2<f64>);
     fn clean(&mut self);
+    fn is_loss_layer(&self) -> bool {false}
 }
-
-impl dyn NetworkBatchLayer {
-    fn is_loss_layer(&self) -> bool {
-        false
-    }
-}
-
 
 // Direct value
 pub struct NetworkBatchValueLayer {
@@ -48,7 +32,7 @@ impl NetworkBatchLayer for NetworkBatchValueLayer {
     fn forward(&mut self) -> Array2<f64> {
         self.value.clone()
     }
-    fn backward(&mut self, dout: Array2<f64>, learning_rate: f64) {
+    fn backward(&mut self, _dout: Array2<f64>, _learning_rate: f64) {
         // Nothing to do
     }
     fn set_value(&mut self, value: &Array2<f64>) {
@@ -196,6 +180,10 @@ impl NetworkBatchLayer for AffineLayer {
 #[cfg(test)]
 mod test_affine_mod {
     use super::*;
+
+    use ndarray::prelude::{
+        arr2,
+    };
 
     #[test]
     fn test_new_random() {
