@@ -3,10 +3,12 @@ use ndarray::prelude::{
 };
 use rand::Rng;
 
+use crate::deep_learning::optimizer::*;
+
 pub trait NetworkBatchLayer {
     fn forward(&mut self) -> Array2<f64>;
     fn forward_skip_loss(&mut self) -> Array2<f64> {self.forward()}
-    fn backward(&mut self, _dout: Array2<f64>, _learning_rate: f64) {}
+    fn backward(&mut self, _dout: Array2<f64>) {}
     fn set_value(&mut self, value: &Array2<f64>);
     fn set_lbl(&mut self, value: &Array2<f64>);
     fn clean(&mut self);
@@ -32,9 +34,6 @@ impl NetworkBatchLayer for NetworkBatchValueLayer {
     fn forward(&mut self) -> Array2<f64> {
         self.value.clone()
     }
-    fn backward(&mut self, _dout: Array2<f64>, _learning_rate: f64) {
-        // Nothing to do
-    }
     fn set_value(&mut self, value: &Array2<f64>) {
         if self.value.shape() != value.shape() {
             panic!("Different shape. self.value: {:?} value:{:?}", self.value.shape(), value.shape());
@@ -52,16 +51,22 @@ impl NetworkBatchLayer for NetworkBatchValueLayer {
 // Affine value(weight and bias)
 pub struct NetworkBatchAffineValueLayer {
     value: Array2<f64>,
+    optimizer: Box<dyn Optimizer>,
 }
 impl NetworkBatchAffineValueLayer {
-    pub fn new(value: Array2<f64>) -> NetworkBatchAffineValueLayer {
-        // println!("init value:\n{:?}\n\n", value);
+    pub fn new<TO>(value: Array2<f64>, optimizer: TO)
+        -> NetworkBatchAffineValueLayer
+        where TO: Optimizer + 'static
+    {
         NetworkBatchAffineValueLayer {
             value: value,
+            optimizer: Box::new(optimizer),
         }
     }
-    pub fn new_from_len(row_len: usize, col_len: usize) -> NetworkBatchAffineValueLayer {
-        return NetworkBatchAffineValueLayer::new(Array2::<f64>::zeros((row_len, col_len)))
+    pub fn new_from_len<TO>(row_len: usize, col_len: usize, optimizer: TO) -> NetworkBatchAffineValueLayer
+        where TO: Optimizer + 'static
+    {
+        return NetworkBatchAffineValueLayer::new(Array2::<f64>::zeros((row_len, col_len)), optimizer);
     }
     pub fn get_value(&self) -> &Array2<f64> {&self.value}
 }
@@ -69,11 +74,9 @@ impl NetworkBatchLayer for NetworkBatchAffineValueLayer {
     fn forward(&mut self) -> Array2<f64> {
         self.value.clone()
     }
-    fn backward(&mut self, dout: Array2<f64>, learning_rate: f64) {
-        // println!("dout:\n{:?}", dout);
-        self.value = &self.value - (dout * learning_rate);
-        // println!("value:\n{:?}", self.value);
-        // println!("\n\n");
+    fn backward(&mut self, dout: Array2<f64>) {
+        let updated_value = self.optimizer.update(&self.value, &dout);
+        self.value.assign(&updated_value);
     }
     fn set_value(&mut self, value: &Array2<f64>) {
         if self.value.shape() != value.shape() {
@@ -97,10 +100,11 @@ pub struct AffineLayer {
     z: Option<Array2<f64>>, 
 }
 impl AffineLayer {
-    pub fn new<TX, TW, TB>(x: TX, w: TW, b: TB) -> AffineLayer
-        where   TX: NetworkBatchLayer + 'static,
-                TW: NetworkBatchLayer + 'static,
-                TB: NetworkBatchLayer + 'static
+    pub fn new<TX, TW, TB>(x: TX, w: TW, b: TB)
+        -> AffineLayer
+        where   TX : NetworkBatchLayer + 'static,
+                TW : NetworkBatchLayer + 'static,
+                TB : NetworkBatchLayer + 'static,
     {
         AffineLayer {
             x: Box::new(x),
@@ -109,22 +113,31 @@ impl AffineLayer {
             z: None,
         }
     }
-    pub fn new_random<TX>(x: TX, input_len: usize, neuron_len: usize)-> AffineLayer
-        where   TX: NetworkBatchLayer + 'static
+    pub fn new_random<TX, TWO, TBO>(x: TX, input_len: usize, neuron_len: usize, optimizer_w: TWO, optimizer_b: TBO)
+        -> AffineLayer
+        where   TX : NetworkBatchLayer + 'static,
+                TWO: Optimizer + 'static,
+                TBO: Optimizer + 'static
     {
         let mut rng = rand::thread_rng();
 
         // Generate initialize weight and biasn by random.
         // -1.0 <= weight < 1.0
-        let affine_weight = NetworkBatchAffineValueLayer::new(Array2::<f64>::from_shape_fn(
-            (input_len as usize, neuron_len as usize),
-            |(_, _)| rng.gen::<f64>()*2.0-1.0
-        ));
+        let affine_weight = NetworkBatchAffineValueLayer::new(
+            Array2::<f64>::from_shape_fn(
+                (input_len as usize, neuron_len as usize),
+                |(_, _)| rng.gen::<f64>()*2.0-1.0
+            ),
+            optimizer_w    
+        );
         // -0.01 <= bias < 0.01
-        let affine_bias = NetworkBatchAffineValueLayer::new(Array2::from_shape_fn(
-            (1, neuron_len as usize),
-            |_| (rng.gen::<f64>()*2.0-1.0) / 100.0
-        ));
+        let affine_bias = NetworkBatchAffineValueLayer::new(
+            Array2::from_shape_fn(
+                (1, neuron_len as usize),
+                |_| (rng.gen::<f64>()*2.0-1.0) / 100.0
+            ),
+            optimizer_b
+        );
 
        return AffineLayer::new(x, affine_weight, affine_bias);
     }
@@ -142,16 +155,16 @@ impl NetworkBatchLayer for AffineLayer {
         }
         self.z.clone().unwrap()
     }
-    fn backward(&mut self, dout: Array2<f64>, learning_rate: f64) {
+    fn backward(&mut self, dout: Array2<f64>) {
         let w = self.w.forward();
         let w_t = w.t();
         let dx = dout.dot(&w_t);
-        self.x.backward(dx, learning_rate);
+        self.x.backward(dx,);
 
         let x = self.x.forward();
         let x_t = x.t();
         let dw = x_t.dot(&dout);
-        self.w.backward(dw, learning_rate);
+        self.w.backward(dw);
 
         let mut db = Array2::<f64>::zeros((1, dout.shape()[1]));
         for col_i in 0..dout.shape()[1] {
@@ -161,7 +174,7 @@ impl NetworkBatchLayer for AffineLayer {
             }
             db[(0, col_i)] = sum / dout.shape()[1] as f64;
         }
-        self.b.backward(db, learning_rate);
+        self.b.backward(db);
     }
     fn set_value(&mut self, value: &Array2<f64>) {
         self.x.set_value(value);
@@ -194,7 +207,13 @@ mod test_affine_mod {
             ]
         ));
 
-        let mut affine = AffineLayer::new_random(x, 2, 10);
+        let mut affine = AffineLayer::new_random(
+            x,
+            2,
+            10,
+            Sgd::new(0.01),
+            Sgd::new(0.01)
+        );
 
         assert_eq!(affine.x.forward().shape(), [2, 2]);
         assert_eq!(affine.w.forward().shape(), [2, 10]);
@@ -273,6 +292,6 @@ mod test_affine_mod {
             )
         ];
 
-        let diffs = affine.backward(dout, 0.01);
+        let diffs = affine.backward(dout);
     }
 }

@@ -30,7 +30,7 @@ impl NetworkBatchLayer for ReluLayer {
         }
         return self.y.clone().unwrap();
     }
-    fn backward(&mut self, dout: Array2<f64>, learning_rate: f64) {
+    fn backward(&mut self, dout: Array2<f64>) {
         let x = self.x.forward();
         if dout.shape() != x.shape() {
             panic!("Different shape. dout: {:?} x: {:?}", dout.shape(), x.shape());
@@ -46,7 +46,7 @@ impl NetworkBatchLayer for ReluLayer {
             }
         });
 
-        self.x.backward(dx, learning_rate);
+        self.x.backward(dx);
     }
     fn set_value(&mut self, value: &Array2<f64>) {
         self.x.set_value(value);
@@ -96,7 +96,7 @@ impl NetworkBatchLayer for SigmoidLayer {
         return self.y.clone().unwrap();
     }
     // f(x)' = (1 - f(x)) f(x)
-    fn backward(&mut self, dout: Array2<f64>, learning_rate: f64) {
+    fn backward(&mut self, dout: Array2<f64>) {
         let fx = self.forward();
         if dout.shape() != fx.shape() {
             panic!("Different shape. dout: {:?} fx:{:?}", dout.shape(), fx.shape());
@@ -109,7 +109,7 @@ impl NetworkBatchLayer for SigmoidLayer {
             return d * (1.0 - n) * n
         });
 
-        self.x.backward(dx, learning_rate);
+        self.x.backward(dx);
     }
     fn set_value(&mut self, value: &Array2<f64>) {
         self.x.set_value(value);
@@ -169,17 +169,20 @@ mod test_relu_mod {
             ]
         );
 
-        relu.backward(dout, 0.01);
+        relu.backward(dout);
     }
 }
 
 #[cfg(test)]
 mod test_sigmoid_mod {
     use super::*;
-    use crate::deep_learning::common::*;
+
     use ndarray::prelude::{
         arr2,
     };
+
+    use crate::deep_learning::common::*;
+    use crate::deep_learning::optimizer::*;
 
     #[test]
     fn test_forward() {
@@ -210,7 +213,10 @@ mod test_sigmoid_mod {
             ]
         );
         // Use NetworkBatchAffineValueLayer to check side effects
-        let value = NetworkBatchAffineValueLayer::new(arr2_value.clone());
+        let value = NetworkBatchAffineValueLayer::new(
+            arr2_value.clone(),
+            Sgd::new(0.01)
+        );
         let mut sigmoid = SigmoidLayer::new(value);
         let dout = arr2(&
             [
@@ -219,7 +225,7 @@ mod test_sigmoid_mod {
             ]
         );
 
-        sigmoid.backward(dout.clone(), 0.01);
+        sigmoid.backward(dout.clone());
 
         assert_eq!(
             round_digit_arr2(&sigmoid.x.forward(), -4),

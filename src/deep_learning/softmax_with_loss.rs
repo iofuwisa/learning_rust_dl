@@ -45,13 +45,13 @@ impl NetworkBatchLayer for SoftmaxWithLoss {
     fn forward_skip_loss(&mut self) -> Array2<f64> {
         self.x.forward_skip_loss()
     }
-    fn backward(&mut self, dout: Array2<f64>, learning_rate: f64) {
+    fn backward(&mut self, dout: Array2<f64>) {
         let x = self.x.forward();
         let softmax_res = softmax(&x);
 
         let dx = dout * (softmax_res - &self.t);
 
-        self.x.backward(dx, learning_rate);
+        self.x.backward(dx);
     }
     fn set_value(&mut self, value: &Array2<f64>) {
         self.x.set_value(value);
@@ -159,6 +159,8 @@ mod test_softmax_with_loss_mod {
         arr2,
     };
 
+    use crate::deep_learning::optimizer::*;
+
     #[test]
     fn test_softmax() {
         let x = arr2(&
@@ -212,7 +214,10 @@ mod test_softmax_with_loss_mod {
             ]
         );
         // Use NetworkBatchAffineValueLayer to check side effects
-        let x = NetworkBatchAffineValueLayer::new(arr2_x.clone());
+        let x = NetworkBatchAffineValueLayer::new(
+            arr2_x.clone(),
+            Sgd::new(0.01)
+        );
         let t = arr2(&
             [
                 [0.0, 0.0, 1.0, 0.0],
@@ -228,7 +233,7 @@ mod test_softmax_with_loss_mod {
             ]
         );
 
-        softmaxLoss.backward(dout.clone(), 0.01);
+        softmaxLoss.backward(dout.clone());
 
         assert_eq!(
             round_digit_arr2(&softmaxLoss.x.forward(), -4),

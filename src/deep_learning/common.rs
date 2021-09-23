@@ -105,6 +105,10 @@ pub fn random_choice(size: usize, max: usize) -> Vec<usize> {
     return choice;
 }
 
+pub fn sqrt_arr2(x: &Array2<f64>) -> Array2<f64> {
+    x.mapv(|n: f64| -> f64 {n.sqrt()})
+}
+
 #[cfg(test)]
 mod NeuralNetwork_test {
     use super::*;

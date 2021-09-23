@@ -2,13 +2,16 @@ use ndarray::prelude::{
     Array2,
 };
 
+use crate::deep_learning::common::*;
 
-trait Optimizer {
+pub trait Optimizer {
     fn update(&mut self, target: &Array2<f64>, gradient: &Array2<f64>) -> Array2<f64>;
 }
 
+// Reference
+// https://data-science.gr.jp/theory/tml_optimizer_of_gradient_descent.html
 
-struct Sgd {
+pub struct Sgd {
     learning_rate: f64,
 }
 impl Sgd {
@@ -24,8 +27,7 @@ impl Optimizer for Sgd {
     }
 }
 
-
-struct Momentum {
+pub struct Momentum {
     learning_rate: f64,
     velocity: Option<Array2<f64>>,
     friction: f64,
@@ -52,8 +54,7 @@ impl Optimizer for Momentum {
     }
 }
 
-
-struct Rmsprop {
+pub struct Rmsprop {
     learning_rate: f64,
     velocity: Option<Array2<f64>>,
     friction: f64,
@@ -75,42 +76,50 @@ impl Optimizer for Rmsprop {
         let mut velocity = self.velocity.as_mut().unwrap();
 
         velocity.assign(&(velocity.clone() * self.friction + gradient * gradient * (1.0 - self.friction)));
-        return target - self.learning_rate / (velocity.clone() + (10.0 as f64).powi(-6) + gradient);
+        return
+            target - 
+                self.learning_rate /
+                sqrt_arr2(&(velocity.clone() + (10.0 as f64).powi(-6)))
+                * gradient;
     }
 }
 
-struct AdaGrad {
+pub struct AdaGrad {
     learning_rate: f64,
-    grad_suared_sum: Option<Array2<f64>>
+    grad_squared_sum: Option<Array2<f64>>
 }
 impl AdaGrad {
     pub fn new(learning_rate: f64) -> Self {
         Self {
             learning_rate: learning_rate,
-            grad_suared_sum: None,
+            grad_squared_sum: None,
         }
     }
 }
 impl Optimizer for AdaGrad {
     fn update(&mut self, target: &Array2<f64>, gradient: &Array2<f64>) -> Array2<f64> {
-        if self.grad_suared_sum.is_none() {
-            self.grad_suared_sum = Some(Array2::<f64>::zeros(target.dim()));
+        if self.grad_squared_sum.is_none() {
+            self.grad_squared_sum = Some(Array2::<f64>::zeros(target.dim()));
         }
-        let mut grad_suared_sum = self.grad_suared_sum.as_mut().unwrap();
+        let mut grad_squared_sum = self.grad_squared_sum.as_mut().unwrap();
 
-        grad_suared_sum.assign(&(grad_suared_sum.clone() + gradient * gradient));
+        grad_squared_sum.assign(&(grad_squared_sum.clone() + gradient * gradient));
 
-        return target - grad_suared_sum.clone() * gradient * self.learning_rate;
+        return
+            target -
+                self.learning_rate /
+                sqrt_arr2(&(grad_squared_sum.clone() + (10.0 as f64).powi(-6))) *
+                gradient;
     }
 }
 
-struct Adam {
+pub struct Adam {
     learning_rate: f64,
     m: Option<Array2<f64>>,
     v: Option<Array2<f64>>,
     friction_m: f64,
     friction_v: f64,
-    update_count: f64,
+    update_count: u32,
 }
 impl Adam {
     pub fn new(learning_rate: f64, friction_m: f64, friction_v: f64) -> Self {
@@ -120,13 +129,13 @@ impl Adam {
             v: None,
             friction_m: friction_m,
             friction_v: friction_v,
-            update_count: 0.0,
+            update_count: 0,
         }
     }
 }
 impl Optimizer for Adam {
     fn update(&mut self, target: &Array2<f64>, gradient: &Array2<f64>) -> Array2<f64> {
-        self.update_count += 1.0;
+        self.update_count += 1;
 
         if self.m.is_none() {
             self.m = Some(Array2::<f64>::zeros(target.dim()));
@@ -142,15 +151,16 @@ impl Optimizer for Adam {
 
         v.assign(&(self.friction_v * v.clone() + (1.0 - self.friction_v) * gradient * gradient));
 
-        let m_d = m.clone() / (1.0 - self.friction_m.powf(self.update_count));
+        let m_d = m.clone() / (1.0 - self.friction_m.powi(self.update_count as i32));
 
-        let v_d = v.clone() / (1.0 - self.friction_v.powf(self.update_count));
+        let v_d = v.clone() / (1.0 - self.friction_v.powi(self.update_count as i32));
 
         return 
             target - 
-                self.learning_rate / 
-                (v_d + (10.0 as f64).powi(-6)).mapv(|v: f64| -> f64 {v.sqrt()})
-                    * m_d;
+                self.learning_rate *
+                m_d / 
+                sqrt_arr2(&(v_d + (10.0 as f64).powi(-6)))
+        ;
     }
 }
 
@@ -250,14 +260,28 @@ mod test_rmsprop_mod {
         let updated = rmsprop.update(&target, &gradient);
 
         let velocity = gradient.clone() * gradient.clone() * 0.1;
-        let expect_updated = target.clone() - 0.1 / (velocity.clone() + (10.0 as f64).powi(-6) + gradient.clone());
-        assert_eq!(updated, expect_updated);
+        let expect_updated =
+            target.clone() -
+                0.1 /
+                sqrt_arr2(&(velocity.clone() + (10.0 as f64).powi(-6))) *
+                gradient.clone();
+        assert_eq!(
+            round_digit_arr2(&updated, -6),
+            round_digit_arr2(&expect_updated, -6)
+        );
 
         let updated = rmsprop.update(&target, &gradient);
 
         let velocity = velocity.clone() * 0.9 + gradient.clone() * gradient.clone() * 0.1;
-        let expect_updated = target.clone() - 0.1 / (velocity.clone() + (10.0 as f64).powi(-6) + gradient.clone());
-        assert_eq!(updated, expect_updated);
+        let expect_updated =
+        target.clone() -
+            0.1 /
+            sqrt_arr2(&(velocity.clone() + (10.0 as f64).powi(-6))) *
+            gradient.clone();
+        assert_eq!(
+            round_digit_arr2(&updated, -6),
+            round_digit_arr2(&expect_updated, -6)
+        );
     }
 }
 
@@ -288,13 +312,21 @@ mod test_adagrad_mod {
         let updated = adagrad.update(&target, &gradient);
 
         let grad_suared_sum = gradient.clone() * gradient.clone();
-        let expect_updated = target.clone() - grad_suared_sum.clone() * gradient.clone() * 0.1;
+        let expect_updated = 
+            target.clone() -
+                0.1 /
+                sqrt_arr2(&(grad_suared_sum.clone() + (10.0 as f64).powi(-6))) *
+                gradient.clone();
         assert_eq!(updated, expect_updated);
 
         let updated = adagrad.update(&target, &gradient);
 
         let grad_suared_sum = grad_suared_sum.clone() + gradient.clone() * gradient.clone();
-        let expect_updated = target.clone() - grad_suared_sum.clone() * gradient.clone() * 0.1;
+        let expect_updated = 
+            target.clone() -
+                0.1 /
+                sqrt_arr2(&(grad_suared_sum.clone() + (10.0 as f64).powi(-6))) *
+                gradient.clone();
         assert_eq!(updated, expect_updated);
     }
 }

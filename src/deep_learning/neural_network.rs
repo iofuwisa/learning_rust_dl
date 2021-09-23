@@ -69,7 +69,7 @@ impl NeuralNetwork {
                     self.last_layer.forward().shape()[1],
                 )
             );
-            self.last_layer.backward(init_dout, parameter.learning_rate);
+            self.last_layer.backward(init_dout);
 
             println!("Complete iteratioin:{}", iteration);
             let (loss, rate) = self.test(parameter.batch_size, &resource.tst_data, &resource.tst_lbl_onehot);
@@ -155,12 +155,20 @@ mod test_neuaral_network {
         arr2,
     };
 
+    use crate::deep_learning::optimizer::*;
+
     #[test]
     fn test_set_input() {
         let batch_size = 2;
 
         let layers = NetworkBatchValueLayer::new(Array2::<f64>::zeros((batch_size, 3)));
-        let layers = AffineLayer::new_random(layers, 28*28, 200);
+        let layers = AffineLayer::new_random(
+            layers,
+            28*28,
+            200,
+            Sgd::new(0.01),
+            Sgd::new(0.01)
+        );
         let layers = SoftmaxWithLoss::new(layers, Array2::<f64>::zeros((batch_size, 4)));
         let mut nn = NeuralNetwork::new(layers);
 
@@ -180,7 +188,13 @@ mod test_neuaral_network {
         let batch_size = 2;
 
         let layers = NetworkBatchValueLayer::new(Array2::<f64>::zeros((batch_size, 3)));
-        let layers = AffineLayer::new_random(layers, 28*28, 200);
+        let layers = AffineLayer::new_random(
+            layers,
+            28*28,
+            200,
+            Sgd::new(0.01),
+            Sgd::new(0.01)
+        );
         let layers = SoftmaxWithLoss::new(layers, Array2::<f64>::zeros((batch_size, 4)));
         let mut nn = NeuralNetwork::new(layers);
 
