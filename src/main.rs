@@ -24,9 +24,9 @@ const VAL_IMG_SIZE: usize = 1;
 const TST_IMG_SIZE: usize = 2000;
 
 // Hyper parameter
-const ITERS_NUM: u32 = 100000;
+const ITERS_NUM: u32 = 1000000;
 const MINIBATCH_SIZE: usize = 200;
-const LEARNING_RATE: f64 = 0.001;
+const LEARNING_RATE: f64 = 0.1;
 const MOMENTUM_FLICTION: f64 = 0.9;
 const RMSPROP_FLICTION: f64 = 0.99;
 const ADAM_FLICTION_M: f64 = 0.9;
@@ -55,7 +55,7 @@ fn main(){
         // Sgd::new(LEARNING_RATE),
         // Sgd::new(LEARNING_RATE)
         // Momentum::new(LEARNING_RATE, MOMENTUM_FLICTION),
-        // // Momentum::new(LEARNING_RATE, MOMENTUM_FLICTION)
+        // Momentum::new(LEARNING_RATE, MOMENTUM_FLICTION)
         // Rmsprop::new(LEARNING_RATE, RMSPROP_FLICTION),
         // Rmsprop::new(LEARNING_RATE, RMSPROP_FLICTION)
         // AdaGrad::new(LEARNING_RATE),
@@ -71,7 +71,7 @@ fn main(){
         // Sgd::new(LEARNING_RATE),
         // Sgd::new(LEARNING_RATE)
         // Momentum::new(LEARNING_RATE, MOMENTUM_FLICTION),
-        // // Momentum::new(LEARNING_RATE, MOMENTUM_FLICTION)
+        // Momentum::new(LEARNING_RATE, MOMENTUM_FLICTION)
         // Rmsprop::new(LEARNING_RATE, RMSPROP_FLICTION),
         // Rmsprop::new(LEARNING_RATE, RMSPROP_FLICTION)
         // AdaGrad::new(LEARNING_RATE),
@@ -80,7 +80,21 @@ fn main(){
         Adam::new(LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V)
     );
     // let layers = ReluLayer::new(layers);
-    // let layers = AffineLayer::new_random(layers, 50, 10);
+    // let layers = AffineLayer::new_random(
+    //     layers,
+    //     50,
+    //     10,
+    //     // Sgd::new(LEARNING_RATE),
+    //     // Sgd::new(LEARNING_RATE)
+    //     // Momentum::new(LEARNING_RATE, MOMENTUM_FLICTION),
+    //     // Momentum::new(LEARNING_RATE, MOMENTUM_FLICTION)
+    //     // Rmsprop::new(LEARNING_RATE, RMSPROP_FLICTION),
+    //     // Rmsprop::new(LEARNING_RATE, RMSPROP_FLICTION)
+    //     // AdaGrad::new(LEARNING_RATE),
+    //     // AdaGrad::new(LEARNING_RATE)
+    //     Adam::new(LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
+    //     Adam::new(LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V)
+    // );
     let layers = SoftmaxWithLoss::new(layers, Array2::<f64>::zeros((MINIBATCH_SIZE, 10)));
     let mut nn = NeuralNetwork::new(layers);
 

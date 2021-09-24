@@ -1,10 +1,11 @@
+use std::f64::consts::PI;
 use ndarray::prelude::{
     Array,
     Array1,
     Array2,
     arr1,
 };
-use rand::Rng;
+use rand::{thread_rng, Rng};
 
 // Numerical differentiation
 pub fn numeric_diff(func: Box<dyn Fn(f64) -> f64>, x: f64) -> f64 {
@@ -108,6 +109,20 @@ pub fn random_choice(size: usize, max: usize) -> Vec<usize> {
 pub fn sqrt_arr2(x: &Array2<f64>) -> Array2<f64> {
     x.mapv(|n: f64| -> f64 {n.sqrt()})
 }
+
+pub fn norm_random(avg: f64, std_dev: f64, num: usize) -> Vec<f64> {
+    let mut y = Vec::<f64>::with_capacity(num);
+    let mut rng = thread_rng();
+    for i in 0..num {
+        let u1: f64 = rng.gen_range(0.0..1.0);
+        let u2: f64 = rng.gen_range(0.0..1.0);
+        let a = (-2.0 * u1.ln()).sqrt();
+        let b = (2.0 * PI * u2).cos();
+        y.push(avg + std_dev.powi(2)*a*b )
+    }
+    return y;
+}
+
 
 #[cfg(test)]
 mod NeuralNetwork_test {
