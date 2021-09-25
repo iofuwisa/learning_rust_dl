@@ -4,3 +4,4 @@
 /www/node_modules
 /www/dist
 *.log
+*.png
