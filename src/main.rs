@@ -24,7 +24,7 @@ const VAL_IMG_SIZE: usize = 1;
 const TST_IMG_SIZE: usize = 2000;
 
 // Hyper parameter
-const ITERS_NUM: u32 = 1000000;
+const ITERS_NUM: u32 = 1000;
 const MINIBATCH_SIZE: usize = 200;
 const LEARNING_RATE: f64 = 0.1;
 const MOMENTUM_FLICTION: f64 = 0.9;

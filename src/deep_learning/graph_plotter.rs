@@ -1,60 +1,70 @@
-// use plotters::prelude::*;
-
-// pub fn prot(data: &Vec<(&str, f64)>) -> Result<(), Box<dyn std::error::Error>> {
+use plotters::prelude::*;
 
 
-//     // x軸 : 日付のVector
-//     let xs: Vec<&str> = data.iter()
-//                             .map(|(x, _)| *x)
-//                             .collect();
-//     // y軸: 値のVector
-//     let ys: Vec<f64> = data.iter()
-//                             .map(|(_, y)| *y)
-//                             .collect();
+pub fn prot_correct_rate(correct_rates: Vec<f64>, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    // image size
+    let image_width = 1080;
+    let image_height = 720;
 
-//     // image size
-//     let image_width = 1080;
-//     let image_height = 720;
+    // BitMapBackend for generate file
+    let root = BitMapBackend::new
+        (path, (image_width, image_height)).into_drawing_area();
 
-//     // BitMapBackend for generate file
-//     let root = BitMapBackend::new
-//         ("plot.png", (image_width, image_height)).into_drawing_area();
-
-//     // Background is white
-//     root.fill(&WHITE)?;
-
-//     // Calc max and min in y axis
-//     let (y_min, y_max) = ys.iter()
-//                          .fold(
-//                            (0.0/0.0, 0.0/0.0),
-//                            |(m,n), v| (v.min(m), v.max(n))
-//                           );
+    // Background is white
+    root.fill(&WHITE)?;
     
-//     let caption = "Sample Plot";
-//     let font = ("sans-serif", 20);
+    let caption = "";
+    let font = ("sans-serif", 20);
 
-//     let mut chart = ChartBuilder::on(&root)
-//         .caption(caption, font.into_font()) // キャプションのフォントやサイズ
-//         .margin(10)                         // 上下左右全ての余白
-//         .x_label_area_size(16)              // x軸ラベル部分の余白
-//         .y_label_area_size(42)              // y軸ラベル部分の余白
-//         .build_cartesian_2d(                // x軸とy軸の数値の範囲を指定する
-//             *xs.first().unwrap()..*xs.last().unwrap(), // x軸の範囲
-//             y_min..y_max                               // y軸の範囲
-//         )?;
+    let x_range = 0u32..(correct_rates.len() as u32);
+    let y_range = 0f64..1f64;
+
+    // Graph setting
+    let mut chart = ChartBuilder::on(&root)
+        .caption(caption, font.into_font())
+        .margin(5)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(
+            x_range.clone(),
+            y_range.clone(),
+        )?;
     
-//     // x軸y軸、グリッド線などを描画
-//     chart.configure_mesh().draw()?;
+    // Draw grid
+    chart.configure_mesh().draw()?;
 
-//     // 折れ線グラフの定義＆描画
-//     let line_series = LineSeries::new(
-//                         xs.iter()
-//                         .zip(ys.iter())
-//                         .map(|(x, y)| (*x, *y)),
-//                         &RED
-//                     );
-//     chart.draw_series(line_series)?;
+    // Add x data to correct rate
+    let correct_rates_with_x = correct_rates.clone().into_iter()
+        .zip(x_range.clone().collect::<Vec<u32>>().into_iter())
+        .map(|(y, x)| (x, y));
 
-//     Ok(())
+    // Draw correct rate
+    chart
+        .draw_series(LineSeries::new(
+            correct_rates_with_x,
+            &RED
+        ))?
+        .label("correct answer rate")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
 
-// }
+    // Line setting
+    chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw()?;
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod graph_plotters_test {
+    use super::*;
+    
+    #[test]
+    fn test_prot() {
+        let data = vec![0.1, 0.5, 0.8, 0.5, 0.0, 0.5];
+        prot_correct_rate(data, "./plot.png");
+    }
+    
+}

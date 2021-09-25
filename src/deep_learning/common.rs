@@ -113,12 +113,10 @@ pub fn sqrt_arr2(x: &Array2<f64>) -> Array2<f64> {
 pub fn norm_random(avg: f64, std_dev: f64, num: usize) -> Vec<f64> {
     let mut y = Vec::<f64>::with_capacity(num);
     let mut rng = thread_rng();
-    for i in 0..num {
-        let u1: f64 = rng.gen_range(0.0..1.0);
-        let u2: f64 = rng.gen_range(0.0..1.0);
-        let a = (-2.0 * u1.ln()).sqrt();
-        let b = (2.0 * PI * u2).cos();
-        y.push(avg + std_dev.powi(2)*a*b )
+    for _ in 0..num {
+        let u1 = rng.gen::<f64>();
+        let u2 = rng.gen::<f64>();
+        y.push(avg + (-2.0*u1.ln()*std_dev).sqrt() * (2.0*PI*u2).cos())
     }
     return y;
 }

@@ -7,6 +7,7 @@ use crate::deep_learning::common::*;
 use crate::deep_learning::affine_layer::*;
 use crate::deep_learning::activation_layers::*;
 use crate::deep_learning::softmax_with_loss::*;
+use crate::deep_learning::graph_plotter::*;
 
 pub struct LearningParameter {
     pub learning_rate: f64,
@@ -49,9 +50,12 @@ impl NeuralNetwork {
     }
 
     pub fn learn(&mut self, parameter: LearningParameter, resource: LearningResource) {
+        let mut correct_rates = Vec::<f64>::with_capacity((parameter.iterations_num + 1) as usize);
+
         println!("Start learning");
         let (loss, rate) = self.test(parameter.batch_size, &resource.tst_data, &resource.tst_lbl_onehot);
         println!("{},{},{}\n", 0, loss, rate);
+        correct_rates.push(rate);
 
         for iteration in 0..parameter.iterations_num {
             // Choise batch data
@@ -73,8 +77,9 @@ impl NeuralNetwork {
 
             println!("Complete iteratioin:{}", iteration);
             let (loss, rate) = self.test(parameter.batch_size, &resource.tst_data, &resource.tst_lbl_onehot);
-            println!("{},{},{}\n", iteration+1, loss, rate);
+            correct_rates.push(rate);
         }
+        prot_correct_rate(correct_rates, "./correct_rate.png");
     }
 
     pub fn test(&mut self, batch_size: usize, tst_data: &Array2<f64>, tst_lbl_onehot: &Array2<f64>) -> (f64, f64){
