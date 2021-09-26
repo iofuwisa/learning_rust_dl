@@ -1,12 +1,6 @@
 use plotters::prelude::*;
 
-use rand::SeedableRng;
-use rand_distr::{Distribution, Normal};
-use rand_xorshift::XorShiftRng;
-
-use num_traits::sign::Signed;
-
-pub fn prot_correct_rate(correct_rates: Vec<f64>, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn prot_rate(rates: Vec<f64>, path: &str) -> Result<(), Box<dyn std::error::Error>> {
     // image size
     let image_width = 1080;
     let image_height = 720;
@@ -21,7 +15,7 @@ pub fn prot_correct_rate(correct_rates: Vec<f64>, path: &str) -> Result<(), Box<
     let caption = "";
     let font = ("sans-serif", 20);
 
-    let x_range = 0u32..(correct_rates.len() as u32);
+    let x_range = 0u32..(rates.len() as u32);
     let y_range = 0f64..1f64;
 
     // Graph setting
@@ -38,18 +32,74 @@ pub fn prot_correct_rate(correct_rates: Vec<f64>, path: &str) -> Result<(), Box<
     // Draw grid
     chart.configure_mesh().draw()?;
 
-    // Add x data to correct rate
-    let correct_rates_with_x = correct_rates.clone().into_iter()
+    // Add x data to rate
+    let rates_with_x = rates.clone().into_iter()
         .zip(x_range.clone().collect::<Vec<u32>>().into_iter())
         .map(|(y, x)| (x, y));
 
-    // Draw correct rate
+    // Draw rate
     chart
         .draw_series(LineSeries::new(
-            correct_rates_with_x,
+            rates_with_x,
             &RED
         ))?
-        .label("correct answer rate")
+        .label("rate")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
+
+    // Line setting
+    chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw()?;
+
+    Ok(())
+}
+
+pub fn prot_loss(rates: Vec<f64>, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    // image size
+    let image_width = 1080;
+    let image_height = 720;
+
+    // BitMapBackend for generate file
+    let root = BitMapBackend::new
+        (path, (image_width, image_height)).into_drawing_area();
+
+    // Background is white
+    root.fill(&WHITE)?;
+    
+    let caption = "";
+    let font = ("sans-serif", 20);
+
+    let x_range = 0u32..(rates.len() as u32);
+    let y_range = 0f64..3f64;
+
+    // Graph setting
+    let mut chart = ChartBuilder::on(&root)
+        .caption(caption, font.into_font())
+        .margin(5)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(
+            x_range.clone(),
+            y_range.clone(),
+        )?;
+    
+    // Draw grid
+    chart.configure_mesh().draw()?;
+
+    // Add x data to rate
+    let rates_with_x = rates.clone().into_iter()
+        .zip(x_range.clone().collect::<Vec<u32>>().into_iter())
+        .map(|(y, x)| (x, y));
+
+    // Draw rate
+    chart
+        .draw_series(LineSeries::new(
+            rates_with_x,
+            &RED
+        ))?
+        .label("rate")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
 
     // Line setting
@@ -76,9 +126,6 @@ pub fn prot_histogram(data: Vec<f64>, path: &str) -> Result<(), Box<dyn std::err
     
     let caption = "";
     let font = ("sans-serif", 20);
-
-    // let x_range = 0u32..(correct_rates.len() as u32);
-    // let y_range = 0f64..1f64;
 
     // Graph setting
     let mut chart = ChartBuilder::on(&root)
@@ -115,14 +162,14 @@ mod graph_plotters_test {
     use crate::deep_learning::common::*;
     
     #[test]
-    fn test_prot_correct_rate() {
+    fn test_prot_rate() {
         let data = vec![0.1, 0.5, 0.8, 0.5, 0.0, 0.5];
-        prot_correct_rate(data, "./plot.png");
+        prot_rate(data, "./plot.png");
     }
 
     #[test]
     fn test_prot_histogram() {
-        let data = norm_random(100000);
+        let data = norm_random_vec(100000);
         prot_histogram(data, "./plot.png");
     }
     

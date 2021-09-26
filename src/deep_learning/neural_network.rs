@@ -51,11 +51,13 @@ impl NeuralNetwork {
 
     pub fn learn(&mut self, parameter: LearningParameter, resource: LearningResource) {
         let mut correct_rates = Vec::<f64>::with_capacity((parameter.iterations_num + 1) as usize);
+        let mut losses = Vec::<f64>::with_capacity((parameter.iterations_num + 1) as usize);
 
         println!("Start learning");
         let (loss, rate) = self.test(parameter.batch_size, &resource.tst_data, &resource.tst_lbl_onehot);
-        println!("{},{},{}\n", 0, loss, rate);
+        println!("");
         correct_rates.push(rate);
+        losses.push(loss);
 
         for iteration in 0..parameter.iterations_num {
             // Choise batch data
@@ -78,35 +80,42 @@ impl NeuralNetwork {
             println!("Complete iteratioin:{}", iteration);
             let (loss, rate) = self.test(parameter.batch_size, &resource.tst_data, &resource.tst_lbl_onehot);
             correct_rates.push(rate);
+            losses.push(loss);
         }
-        prot_correct_rate(correct_rates, "./correct_rate.png");
+        prot_rate(correct_rates, "./correct_rate.png");
+        prot_loss(losses, "./loss.png");
     }
 
     pub fn test(&mut self, batch_size: usize, tst_data: &Array2<f64>, tst_lbl_onehot: &Array2<f64>) -> (f64, f64){
-        // Choise batch data
-        let (batch_data, batch_lbl_onehot) = make_minibatch_data(batch_size, &tst_data, &tst_lbl_onehot);
+        let mut correct_rate = 0.0;
+        let mut loss = 0.0;
+        for _ in 0..10 {
+            // Choise batch data
+            let (batch_data, batch_lbl_onehot) = make_minibatch_data(batch_size, &tst_data, &tst_lbl_onehot);
 
-        // Set batch data
-        self.set_input(&batch_data);
-        self.set_lbl(&batch_lbl_onehot);
+            // Set batch data
+            self.set_input(&batch_data);
+            self.set_lbl(&batch_lbl_onehot);
 
-        // Forward (skip loss)
-        let test_res = self.last_layer.forward_skip_loss();
+            // Forward (skip loss)
+            let test_res = self.last_layer.forward_skip_loss();
 
-        let correct_rate = calc_correct_rate(&test_res, &batch_lbl_onehot);
+            correct_rate += calc_correct_rate(&test_res, &batch_lbl_onehot) / 10f64;
 
-        // Forwards
-        let batch_loss = self.forward();
+            // Forwards
+            let batch_loss = self.forward();
 
-        // calc loss
-        let mut loss_sum = 0.0;
-        for l in &batch_loss {
-            loss_sum += *l;
+            // calc loss
+            let mut loss_sum = 0f64;
+            for l in &batch_loss {
+                loss_sum += *l;
+            }
+            loss += loss_sum / batch_loss.len() as f64 / 10f64;
         }
-        let loss = loss_sum / batch_loss.len() as f64;
-
+        
         println!("Test Loss: {}", loss);
         println!("Test CorrectRate: {}%", correct_rate * 100.0);
+        println!("");
 
         return (loss, correct_rate);
     }

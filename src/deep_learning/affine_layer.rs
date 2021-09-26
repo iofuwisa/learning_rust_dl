@@ -4,6 +4,7 @@ use ndarray::prelude::{
 use rand::Rng;
 
 use crate::deep_learning::optimizer::*;
+use crate::deep_learning::common::*;
 
 pub trait NetworkBatchLayer {
     fn forward(&mut self) -> Array2<f64>;
@@ -121,21 +122,23 @@ impl AffineLayer {
     {
         let mut rng = rand::thread_rng();
 
-        // Generate initialize weight and biasn by random.
-        // -1.0 <= weight < 1.0
+        // Generate initialize weight and biasn by normal distibution
         let affine_weight = NetworkBatchAffineValueLayer::new(
-            Array2::<f64>::from_shape_fn(
+            Array2::from_shape_vec(
                 (input_len as usize, neuron_len as usize),
-                |(_, _)| rng.gen::<f64>()*2.0-1.0
-            ),
+                norm_random_vec(input_len * neuron_len)
+            ).ok().unwrap(),
             optimizer_w    
         );
-        // -0.01 <= bias < 0.01
+        let mut norm_bias_iter = norm_random_vec(neuron_len).into_iter();
         let affine_bias = NetworkBatchAffineValueLayer::new(
-            Array2::from_shape_fn(
+            Array2::from_shape_vec(
                 (1, neuron_len as usize),
-                |_| (rng.gen::<f64>()*2.0-1.0) / 100.0
-            ),
+                norm_random_vec(neuron_len)
+                    .into_iter()
+                    .map(|x: f64| {x / 100.0})
+                    .collect()
+            ).ok().unwrap(),
             optimizer_b
         );
 

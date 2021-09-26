@@ -110,7 +110,7 @@ pub fn sqrt_arr2(x: &Array2<f64>) -> Array2<f64> {
     x.mapv(|n: f64| -> f64 {n.sqrt()})
 }
 
-pub fn norm_random(num: usize) -> Vec<f64> {
+pub fn norm_random_vec(num: usize) -> Vec<f64> {
     let mut y = Vec::<f64>::with_capacity(num);
     let mut rng = thread_rng();
     for _ in 0..num {
