@@ -10,7 +10,6 @@ use crate::deep_learning::softmax_with_loss::*;
 use crate::deep_learning::graph_plotter::*;
 
 pub struct LearningParameter {
-    pub learning_rate: f64,
     pub batch_size: usize,
     pub iterations_num: u32,
 }
@@ -58,6 +57,7 @@ impl NeuralNetwork {
         println!("");
         correct_rates.push(rate);
         losses.push(loss);
+        self.last_layer.prot();
 
         for iteration in 0..parameter.iterations_num {
             // Choise batch data
@@ -82,8 +82,9 @@ impl NeuralNetwork {
             correct_rates.push(rate);
             losses.push(loss);
         }
-        prot_rate(correct_rates, "./correct_rate.png");
-        prot_loss(losses, "./loss.png");
+        prot_rate(correct_rates, "correct_rate");
+        prot_loss(losses, "loss");
+        self.last_layer.prot();
     }
 
     pub fn test(&mut self, batch_size: usize, tst_data: &Array2<f64>, tst_lbl_onehot: &Array2<f64>) -> (f64, f64){
@@ -139,7 +140,7 @@ fn calc_correct_rate(result: &Array2<f64>, lbl_onehot: &Array2<f64>) -> f64 {
     return correct_count as f64 / result.shape()[0] as f64;
 }
 
-fn make_minibatch_data(minibatch_size: usize, data: &Array2<f64>, lbl_onehot: &Array2<f64>) -> (Array2<f64>, Array2<f64>) {
+pub fn make_minibatch_data(minibatch_size: usize, data: &Array2<f64>, lbl_onehot: &Array2<f64>) -> (Array2<f64>, Array2<f64>) {
     let mut minibatch_data = Array2::<f64>::zeros((minibatch_size, data.shape()[1]));
     let mut minibatch_lbl_onehot = Array2::<f64>::zeros((minibatch_size, lbl_onehot.shape()[1]));
 
@@ -193,9 +194,6 @@ mod test_neuaral_network {
             ]
         );
         nn.set_input(&input);
-
-        // assert_eq!(nn.last_layer.get_x().get_x().get_value(), input);
-        // assert_eq!(nn.last_layer.get_t(), Array2::<f64>::zeros((batch_size, 4)));
     }
     #[test]
     fn test_set_lbl() {
@@ -219,8 +217,5 @@ mod test_neuaral_network {
             ]
         );
         nn.set_lbl(&lbl);
-
-        // assert_eq!(nn.last_layer.get_x().get_x().get_value(), Array2::<f64>::zeros((batch_size, 3)));
-        // assert_eq!(nn.last_layer.get_t(), lbl);
     }
 }

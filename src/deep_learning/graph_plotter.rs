@@ -1,13 +1,19 @@
 use plotters::prelude::*;
+use chrono::Local;
+use std::path::Path;
 
-pub fn prot_rate(rates: Vec<f64>, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn prot_rate(rates: Vec<f64>, caption: &str) -> Result<(), Box<dyn std::error::Error>> {
     // image size
     let image_width = 1080;
     let image_height = 720;
 
     // BitMapBackend for generate file
-    let root = BitMapBackend::new
-        (path, (image_width, image_height)).into_drawing_area();
+    let date_str = Local::now().format("%m_%d_%H_%M_%S%.f").to_string();
+    let file_path_str = "./graph/".to_string() + caption + &date_str + ".png";
+    let root = BitMapBackend::new(
+        Path::new(&file_path_str),
+        (image_width, image_height))
+    .into_drawing_area();
 
     // Background is white
     root.fill(&WHITE)?;
@@ -56,14 +62,18 @@ pub fn prot_rate(rates: Vec<f64>, path: &str) -> Result<(), Box<dyn std::error::
     Ok(())
 }
 
-pub fn prot_loss(rates: Vec<f64>, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn prot_loss(rates: Vec<f64>, caption: &str) -> Result<(), Box<dyn std::error::Error>> {
     // image size
     let image_width = 1080;
     let image_height = 720;
 
     // BitMapBackend for generate file
-    let root = BitMapBackend::new
-        (path, (image_width, image_height)).into_drawing_area();
+    let date_str = Local::now().format("%m_%d_%H_%M_%S%.f").to_string();
+    let file_path_str = "./graph/".to_string() + caption + &date_str + ".png";
+    let root = BitMapBackend::new(
+        Path::new(&file_path_str),
+        (image_width, image_height))
+    .into_drawing_area();
 
     // Background is white
     root.fill(&WHITE)?;
@@ -112,20 +122,38 @@ pub fn prot_loss(rates: Vec<f64>, path: &str) -> Result<(), Box<dyn std::error::
     Ok(())
 }
 
-pub fn prot_histogram(data: Vec<f64>, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn prot_histogram(data: Vec<f64>, caption: &str) -> Result<(), Box<dyn std::error::Error>> {
     // image size
     let image_width = 1080;
     let image_height = 720;
 
     // BitMapBackend for generate file
-    let root = BitMapBackend::new
-        (path, (image_width, image_height)).into_drawing_area();
+    let date_str = Local::now().format("%m_%d_%H_%M_%S%.f").to_string();
+    let file_path_str = "./graph/".to_string() + caption + &date_str + ".png";
+    let root = BitMapBackend::new(
+        Path::new(&file_path_str),
+        (image_width, image_height))
+    .into_drawing_area();
 
     // Background is white
     root.fill(&WHITE)?;
     
     let caption = "";
     let font = ("sans-serif", 20);
+
+    // Count max
+    let mut max_count: u32 = 0;
+    for r in (-40..40).step_by(1) {
+        let range_low = r as f64 / 10f64;
+        let range_high = (r + 1) as f64 / 10f64;
+        let mut count = 0;
+        for d in &data {
+            if *d >= range_low && *d < range_high {
+                count += 1;
+            }
+        }
+        max_count = if max_count<count {count} else {max_count};
+    }
 
     // Graph setting
     let mut chart = ChartBuilder::on(&root)
@@ -135,7 +163,7 @@ pub fn prot_histogram(data: Vec<f64>, path: &str) -> Result<(), Box<dyn std::err
         .y_label_area_size(30)
         .build_cartesian_2d(
             (-4f64..4f64).step(0.1).use_round().into_segmented(),
-            0u32..5000u32
+            0u32..max_count
         )?;
 
     chart
@@ -164,13 +192,21 @@ mod graph_plotters_test {
     #[test]
     fn test_prot_rate() {
         let data = vec![0.1, 0.5, 0.8, 0.5, 0.0, 0.5];
-        prot_rate(data, "./plot.png");
+        prot_rate(data, "test_rate");
     }
 
     #[test]
     fn test_prot_histogram() {
-        let data = norm_random_vec(100000);
-        prot_histogram(data, "./plot.png");
+        let data = norm_random_vec(30000);
+        prot_histogram(data, "test_histo");
+    }
+
+    #[test]
+    fn test_aa() {
+        // let v: Vec<f64> = (-4f64..4f64).collect();
+        for n in (-4..4).step_by(2) {
+            println!("{}", n);
+        }
     }
     
 }

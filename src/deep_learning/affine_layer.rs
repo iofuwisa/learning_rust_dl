@@ -5,6 +5,7 @@ use rand::Rng;
 
 use crate::deep_learning::optimizer::*;
 use crate::deep_learning::common::*;
+use crate::deep_learning::graph_plotter::*;
 
 pub trait NetworkBatchLayer {
     fn forward(&mut self) -> Array2<f64>;
@@ -14,6 +15,7 @@ pub trait NetworkBatchLayer {
     fn set_lbl(&mut self, value: &Array2<f64>);
     fn clean(&mut self);
     fn is_loss_layer(&self) -> bool {false}
+    fn prot(&self);
 }
 
 // Direct value
@@ -29,7 +31,6 @@ impl NetworkBatchValueLayer {
     pub fn new_from_len(row_len: usize, col_len: usize) -> NetworkBatchValueLayer {
         return NetworkBatchValueLayer::new(Array2::<f64>::zeros((row_len, col_len)))
     }
-    pub fn get_value(&self) -> &Array2<f64> {&self.value}
 }
 impl NetworkBatchLayer for NetworkBatchValueLayer {
     fn forward(&mut self) -> Array2<f64> {
@@ -47,12 +48,16 @@ impl NetworkBatchLayer for NetworkBatchValueLayer {
     fn clean(&mut self) {
         // Nothing to do
     }
+    fn prot(&self){
+        // Nothing to do
+    }
 }
 
 // Affine value(weight and bias)
 pub struct NetworkBatchAffineValueLayer {
     value: Array2<f64>,
     optimizer: Box<dyn Optimizer>,
+    name: String,
 }
 impl NetworkBatchAffineValueLayer {
     pub fn new<TO>(value: Array2<f64>, optimizer: TO)
@@ -62,6 +67,7 @@ impl NetworkBatchAffineValueLayer {
         NetworkBatchAffineValueLayer {
             value: value,
             optimizer: Box::new(optimizer),
+            name: "".to_string(),
         }
     }
     pub fn new_from_len<TO>(row_len: usize, col_len: usize, optimizer: TO) -> NetworkBatchAffineValueLayer
@@ -69,7 +75,21 @@ impl NetworkBatchAffineValueLayer {
     {
         return NetworkBatchAffineValueLayer::new(Array2::<f64>::zeros((row_len, col_len)), optimizer);
     }
-    pub fn get_value(&self) -> &Array2<f64> {&self.value}
+    pub fn new_with_name<TO>(value: Array2<f64>, optimizer: TO, name: String)
+        -> NetworkBatchAffineValueLayer
+        where TO: Optimizer + 'static
+    {
+        NetworkBatchAffineValueLayer {
+            value: value,
+            optimizer: Box::new(optimizer),
+            name: name,
+        }
+    }
+    pub fn new_from_len_with_name<TO>(row_len: usize, col_len: usize, optimizer: TO, name: String) -> NetworkBatchAffineValueLayer
+        where TO: Optimizer + 'static
+    {
+        return NetworkBatchAffineValueLayer::new_with_name(Array2::<f64>::zeros((row_len, col_len)), optimizer, name);
+    }
 }
 impl NetworkBatchLayer for NetworkBatchAffineValueLayer {
     fn forward(&mut self) -> Array2<f64> {
@@ -90,6 +110,9 @@ impl NetworkBatchLayer for NetworkBatchAffineValueLayer {
     }
     fn clean(&mut self) {
         // Nothing to do
+    }
+    fn prot(&self) {
+        prot_histogram(self.value.clone().into_iter().collect(), &self.name);
     }
 }
 
@@ -144,6 +167,38 @@ impl AffineLayer {
 
        return AffineLayer::new(x, affine_weight, affine_bias);
     }
+    pub fn new_random_with_name<TX, TWO, TBO>(x: TX, input_len: usize, neuron_len: usize, optimizer_w: TWO, optimizer_b: TBO, name: String)
+    -> AffineLayer
+    where   TX : NetworkBatchLayer + 'static,
+            TWO: Optimizer + 'static,
+            TBO: Optimizer + 'static
+{
+    let mut rng = rand::thread_rng();
+
+    // Generate initialize weight and biasn by normal distibution
+    let affine_weight = NetworkBatchAffineValueLayer::new_with_name(
+        Array2::from_shape_vec(
+            (input_len as usize, neuron_len as usize),
+            norm_random_vec(input_len * neuron_len)
+        ).ok().unwrap(),
+        optimizer_w,
+        name.clone() + "_weight",
+    );
+    let mut norm_bias_iter = norm_random_vec(neuron_len).into_iter();
+    let affine_bias = NetworkBatchAffineValueLayer::new_with_name(
+        Array2::from_shape_vec(
+            (1, neuron_len as usize),
+            norm_random_vec(neuron_len)
+                .into_iter()
+                .map(|x: f64| {x / 100.0})
+                .collect()
+        ).ok().unwrap(),
+        optimizer_b,
+        name.clone() + "_bias",
+    );
+
+   return AffineLayer::new(x, affine_weight, affine_bias);
+}
     pub fn get_x(&self) -> &Box<dyn NetworkBatchLayer> {&self.x}
     pub fn get_w(&self) -> &Box<dyn NetworkBatchLayer> {&self.w}
     pub fn get_b(&self) -> &Box<dyn NetworkBatchLayer> {&self.b}
@@ -189,6 +244,11 @@ impl NetworkBatchLayer for AffineLayer {
     }
     fn clean(&mut self) {
         self.z = None;
+    }
+    fn prot(&self){
+        self.x.prot();
+        self.w.prot();
+        self.b.prot();
     }
 }
 

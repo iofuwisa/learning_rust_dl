@@ -24,7 +24,7 @@ const VAL_IMG_SIZE: usize = 1;
 const TST_IMG_SIZE: usize = 2000;
 
 // Hyper parameter
-const ITERS_NUM: u32 = 1000;
+const ITERS_NUM: u32 = 100;
 const MINIBATCH_SIZE: usize = 200;
 const SGD_LEARNING_RATE: f64 = 0.001;
 const MOMENTUM_LEARNING_RATE: f64 = 0.1;
@@ -52,7 +52,7 @@ fn main(){
     // Create NN from layers stack
     // Include loss layer
     let layers = NetworkBatchValueLayer::new(Array2::<f64>::zeros((MINIBATCH_SIZE, 28*28)));
-    let layers = AffineLayer::new_random(
+    let layers = AffineLayer::new_random_with_name(
         layers,
         28*28,
         200,
@@ -65,10 +65,11 @@ fn main(){
         // AdaGrad::new(ADAGRAD_LEARNING_RATE),
         // AdaGrad::new(ADAGRAD_LEARNING_RATE)
         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V)
+        Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
+        "layer1".to_string(),
     );
     let layers = ReluLayer::new(layers);
-    let layers = AffineLayer::new_random(
+    let layers = AffineLayer::new_random_with_name(
         layers,
         200,
         10,
@@ -81,7 +82,8 @@ fn main(){
         // AdaGrad::new(ADAGRAD_LEARNING_RATE),
         // AdaGrad::new(ADAGRAD_LEARNING_RATE)
         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V)
+        Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
+        "layer2".to_string(),
     );
     // let layers = ReluLayer::new(layers);
     // let layers = AffineLayer::new_random(
@@ -97,14 +99,14 @@ fn main(){
     //     // AdaGrad::new(ADAGRAD_LEARNING_RATE),
     //     // AdaGrad::new(ADAGRAD_LEARNING_RATE)
     //     Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-    //     Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V)
+    //     Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
+    //     "layer3".to_string(),
     // );
     let layers = SoftmaxWithLoss::new(layers, Array2::<f64>::zeros((MINIBATCH_SIZE, 10)));
     let mut nn = NeuralNetwork::new(layers);
 
     nn.learn(
         LearningParameter{
-            learning_rate:  LEARNING_RATE,
             batch_size:     MINIBATCH_SIZE,
             iterations_num: ITERS_NUM,
         }, 

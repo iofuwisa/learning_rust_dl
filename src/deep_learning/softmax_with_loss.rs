@@ -68,6 +68,9 @@ impl NetworkBatchLayer for SoftmaxWithLoss {
     fn clean(&mut self) {
         self.z = None;
     }
+    fn prot(&self){
+        self.x.prot();
+    }
 }
 
 fn softmax(x: &Array2<f64>) -> Array2<f64> {

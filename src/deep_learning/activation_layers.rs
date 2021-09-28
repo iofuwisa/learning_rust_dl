@@ -59,6 +59,9 @@ impl NetworkBatchLayer for ReluLayer {
     fn clean(&mut self) {
         self.y = None;
     }
+    fn prot(&self){
+        self.x.prot();
+    }
 }
 
 
@@ -121,6 +124,9 @@ impl NetworkBatchLayer for SigmoidLayer {
     }
     fn clean(&mut self) {
         self.y = None;
+    }
+    fn prot(&self){
+        self.x.prot();
     }
 }
 
