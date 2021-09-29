@@ -86,43 +86,16 @@ impl NetworkBatchLayer for BatchNorm {
             let x = self.x.forward();
             let w = self.w.forward();
             let b = self.b.forward();
-           
-            // Calc average for each column
-            let mut average = Array2::<f64>::zeros(x.dim());
-            for col in 0..x.shape()[1] {
-                let col_x = x.index_axis(Axis(1), col);
-                let mut col_average = average.index_axis_mut(Axis(1), col);
+        
 
-                let mut sum = 0f64;
-                for n in &col_x {
-                    sum += *n;
-                }
-                let batch_average = sum / col_x.len() as f64;
-
-                col_average.fill(batch_average);
-            }
-
-            // Calc distibute
-            let avg_diff_squared = (x.clone() - &average) * (x.clone() - &average);
-            let mut distribute = Array2::<f64>::zeros(x.dim());
-            for col in 0..x.shape()[1] {
-                let col_avg_diff_squared = avg_diff_squared.index_axis(Axis(1), col);
-                let mut col_distribute = distribute.index_axis_mut(Axis(1), col);
-
-                let mut sum = 0f64;
-                for n in &col_avg_diff_squared {
-                    sum += *n;
-                }
-                let batch_distribute = sum / col_avg_diff_squared.len() as f64;
-
-                col_distribute.fill(batch_distribute);
-            }
+            let (average, distribute) = calc_distribute_and_broadcast(&x);
 
             // Calc normalize
             let normalized = (&x - &average) / sqrt_arr2(&(&distribute + 10f64.powi(-6)));
 
             // Apply weight and bias
-            let y = normalized.clone() * w + b;
+            // let y = normalized.clone() * w + b;
+            let y = normalized.clone();
 
             self.y = Some(y);
             self.normalized = Some(normalized);
@@ -246,11 +219,53 @@ impl NetworkBatchLayer for BatchNorm {
     }
 }
 
+fn calc_average_and_broadcast(x: &Array2<f64>) -> Array2<f64> {
+    // Calc average for each column
+    let mut average = Array2::<f64>::zeros(x.dim());
+    for col in 0..x.shape()[1] {
+        let col_x = x.index_axis(Axis(1), col);
+        let mut col_average = average.index_axis_mut(Axis(1), col);
 
+        let mut sum = 0f64;
+        for n in &col_x {
+            sum += *n;
+        }
+        let batch_average = sum / col_x.len() as f64;
+
+        col_average.fill(batch_average);
+    }
+    return average;
+}
+
+fn calc_distribute_and_broadcast(x: &Array2<f64>) -> (Array2<f64>, Array2<f64>) {
+    let average = calc_average_and_broadcast(x);
+
+    // Calc distibute for each column
+    let avg_diff_squared = (x.clone() - &average) * (x.clone() - &average);
+    let mut distribute = Array2::<f64>::zeros(x.dim());
+    for col in 0..x.shape()[1] {
+        let col_avg_diff_squared = avg_diff_squared.index_axis(Axis(1), col);
+        let mut col_distribute = distribute.index_axis_mut(Axis(1), col);
+
+        let mut sum = 0f64;
+        for n in &col_avg_diff_squared {
+            sum += *n;
+        }
+        let batch_distribute = sum / col_avg_diff_squared.len() as f64;
+
+        col_distribute.fill(batch_distribute);
+    }
+    return (average, distribute);
+}
 
 #[cfg(test)]
 mod batch_norm_test {
     use super::*;
+
+    use ndarray::prelude::{
+        Array1,
+        arr2,
+    };
 
     use crate::deep_learning::mnist::*;
     use crate::deep_learning::neural_network::*;
@@ -277,10 +292,61 @@ mod batch_norm_test {
         let (batch_data, _) = make_minibatch_data(100, &trn_img, &trn_lbl_onehot);
         batch_norm.set_value(&batch_data);
 
-        prot_histogram(batch_data.clone().into_iter().collect(), "test_batch_norm_forward_before");
-
         let y = batch_norm.forward();
 
-        prot_histogram(y.clone().into_iter().collect(), "test_batch_norm_forward_after");
+        let (average, distribute) = calc_distribute_and_broadcast(&y);
+        assert_eq!(
+            round_digit_arr2(&average, -6),
+            Array2::<f64>::zeros(average.dim())
+        );
+        assert_eq!(
+            round_digit_arr2(&distribute, -6),
+            Array2::<f64>::ones(distribute.dim())
+        );
+
+    }
+
+    #[test]
+    fn test_calc_average_and_broadcast() {
+        let x = arr2(&
+            [
+                [1f64, 2f64, 3f64],
+                [4f64, 5f64, 6f64],
+            ]
+        );
+
+        let acerage = calc_average_and_broadcast(&x);
+
+        assert_eq!(acerage, arr2(&
+            [
+                [2.5f64, 3.5f64, 4.5f64],
+                [2.5f64, 3.5f64, 4.5f64],
+            ])
+        );
+    }
+
+    #[test]
+    fn test_calc_distribute_and_broadcast() {
+        let x = arr2(&
+            [
+                [1f64, 2f64, 3f64],
+                [5f64, 6f64, 7f64],
+            ]
+        );
+
+        let (acerage, distibute) = calc_distribute_and_broadcast(&x);
+
+        assert_eq!(acerage, arr2(&
+            [
+                [3f64, 4f64, 5f64],
+                [3f64, 4f64, 5f64],
+            ])
+        );
+        assert_eq!(distibute, arr2(&
+            [
+                [4f64, 4f64, 4f64],
+                [4f64, 4f64, 4f64],
+            ])
+        )
     }
 }
