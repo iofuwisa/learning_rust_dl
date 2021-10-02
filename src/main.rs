@@ -14,6 +14,7 @@ use crate::deep_learning::activation_layers::*;
 use crate::deep_learning::neural_network::*;
 // use crate::deep_learning::neural_network_learning::*;
 use crate::deep_learning::optimizer::*;
+use crate::deep_learning::batch_norm::*;
 
 use ndarray::prelude::{
     Array2,
@@ -24,7 +25,7 @@ const VAL_IMG_SIZE: usize = 1;
 const TST_IMG_SIZE: usize = 2000;
 
 // Hyper parameter
-const ITERS_NUM: u32 = 100;
+const ITERS_NUM: u32 = 300;
 const MINIBATCH_SIZE: usize = 200;
 const SGD_LEARNING_RATE: f64 = 0.001;
 const MOMENTUM_LEARNING_RATE: f64 = 0.1;
@@ -68,6 +69,17 @@ fn main(){
         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
         "layer1".to_string(),
     );
+    let layers = BatchNorm::new(
+        layers,
+        NetworkBatchNormValueLayer::new(
+            Array2::<f64>::ones((200, 200)),
+            Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
+        ),
+        NetworkBatchNormValueLayer::new(
+            Array2::<f64>::zeros((200, 200)),
+            Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
+        )
+    );
     let layers = ReluLayer::new(layers);
     let layers = AffineLayer::new_random_with_name(
         layers,
@@ -85,6 +97,17 @@ fn main(){
         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
         "layer2".to_string(),
     );
+    // let layers = BatchNorm::new(
+    //     layers,
+    //     NetworkBatchNormValueLayer::new(
+    //         Array2::<f64>::ones((200, 10)),
+    //         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
+    //     ),
+    //     NetworkBatchNormValueLayer::new(
+    //         Array2::<f64>::zeros((20, 10)),
+    //         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
+    //     )
+    // );
     // let layers = ReluLayer::new(layers);
     // let layers = AffineLayer::new_random(
     //     layers,

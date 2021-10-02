@@ -86,7 +86,6 @@ impl NetworkBatchLayer for BatchNorm {
             let x = self.x.forward();
             let w = self.w.forward();
             let b = self.b.forward();
-        
 
             let (average, distribute) = calc_distribute_and_broadcast(&x);
 
@@ -94,8 +93,7 @@ impl NetworkBatchLayer for BatchNorm {
             let normalized = (&x - &average) / sqrt_arr2(&(&distribute + 10f64.powi(-6)));
 
             // Apply weight and bias
-            // let y = normalized.clone() * w + b;
-            let y = normalized.clone();
+            let y = normalized.clone() * w + b;
 
             self.y = Some(y);
             self.normalized = Some(normalized);
@@ -118,15 +116,7 @@ impl NetworkBatchLayer for BatchNorm {
         let d15 = dout.clone();
         
         // d14 Broadcast
-        let mut d14 = Array2::<f64>::zeros((1, d15.shape()[1]));
-        for col_i in 0..d15.shape()[1] {
-            let col_d15 = d15.index_axis(Axis(1), col_i);
-            let mut sum = 0f64;
-            for n in &col_d15 {
-                sum += *n;
-            }
-            d14[(0, col_i)] = sum;
-        }
+        let d14 = backword_broadcast(&d15);
 
         // 13 db
         self.b.backward(d14.clone());
@@ -138,15 +128,7 @@ impl NetworkBatchLayer for BatchNorm {
         let d12b = normalized * &dout;
 
         // d11 Broadcast
-        let mut d11 = Array2::<f64>::zeros((1, d12b.shape()[1]));
-        for col_i in 0..d12b.shape()[1] {
-            let col_d12b = d12b.index_axis(Axis(1), col_i);
-            let mut sum = 0f64;
-            for n in &col_d12b {
-                sum += *n;
-            }
-            d11[(0, col_i)] = sum;
-        }
+        let d11 = backword_broadcast(&d12b);
 
         // 10
         self.w.backward(d11.clone());
@@ -158,15 +140,7 @@ impl NetworkBatchLayer for BatchNorm {
         let d9b = &d12a * (x.clone() - average);
 
         // d8 Broadcast
-        let mut d8 = Array2::<f64>::zeros((1, d9b.shape()[1]));
-        for col_i in 0..d9b.shape()[1] {
-            let col_d9b = d9b.index_axis(Axis(1), col_i);
-            let mut sum = 0f64;
-            for n in &col_d9b {
-                sum += *n;
-            }
-            d8[(0, col_i)] = sum;
-        }
+        let d8 = backword_broadcast(&d9b);
 
         // d7 1/x
         let d7 = d8 * (-1.0 / (distribute + 10f64.powi(-6)));
@@ -175,7 +149,7 @@ impl NetworkBatchLayer for BatchNorm {
         let d6 = d7 / (2.0 * sqrt_arr2(&(distribute + 10f64.powi(-6).sqrt())));
 
         // d5 avg
-        let d5 = d6 / x.shape()[0] as f64;
+        let d5 = backword_average(&d6, x.shape()[0]);
 
         // d4 ^2
         let d4 = d5 * (x.clone() - average);
@@ -187,17 +161,10 @@ impl NetworkBatchLayer for BatchNorm {
         let d3b = -&d3a;
 
         // d2 Broadcast
-        let mut d2 = Array2::<f64>::zeros((1, d3b.shape()[1]));
-        for col_i in 0..d3b.shape()[1] {
-            let mut sum = 0f64;
-            for row_i in 0..d3b.shape()[0] {
-                sum += d3b[(row_i, col_i)];
-            }
-            d2[(0, col_i)] = sum;
-        }
+        let d2 = backword_broadcast(&d3b);
 
         // d1
-        let d1 = d2 /  x.shape()[0] as f64;
+        let d1 = backword_average(&d2, x.shape()[0]);
         
         let dx = &d3a + d1;
 
@@ -258,6 +225,27 @@ fn calc_distribute_and_broadcast(x: &Array2<f64>) -> (Array2<f64>, Array2<f64>) 
     return (average, distribute);
 }
 
+fn backword_average(x: &Array2<f64>, row_len: usize) -> Array2<f64> {
+    let mut y = Array2::<f64>::zeros((row_len, x.shape()[1]));
+    for col_i in 0..x.shape()[1] {
+        let mut col_y = y.index_axis_mut(Axis(1), col_i);
+        col_y.fill(x[(0, col_i)] / row_len as f64);
+    }
+    return y;
+}
+
+fn backword_broadcast(x: &Array2<f64>) -> Array2<f64> {
+    let mut y = Array2::<f64>::zeros((1, x.shape()[1]));
+    for col_i in 0..x.shape()[1] {
+        let mut sum = 0f64;
+        for row_i in 0..x.shape()[0] {
+            sum += x[(row_i, col_i)];
+        }
+        y[(0, col_i)] = sum;
+    }
+    return y;
+}
+
 #[cfg(test)]
 mod batch_norm_test {
     use super::*;
@@ -266,6 +254,7 @@ mod batch_norm_test {
         Array1,
         arr2,
     };
+    use rand::{thread_rng, Rng};
 
     use crate::deep_learning::mnist::*;
     use crate::deep_learning::neural_network::*;
@@ -274,33 +263,34 @@ mod batch_norm_test {
     #[test]
     fn test_forward() {
         let mut batch_norm = BatchNorm::new(
-            NetworkBatchAffineValueLayer::new_from_len(100, 28*28, Sgd::new(0.01)),
+            NetworkBatchAffineValueLayer::new_from_len(100, 100, Sgd::new(0.01)),
             NetworkBatchNormValueLayer::new(
-                Array2::<f64>::ones((100, 28*28)),
+                Array2::<f64>::ones((100, 100)),
                 Sgd::new(0.01)
             ),
             NetworkBatchNormValueLayer::new(
-                Array2::<f64>::zeros((100, 28*28)),
+                Array2::<f64>::zeros((100, 100)),
                 Sgd::new(0.01)
             ),
         );
 
-        let mnist = MnistImages::new(1000, 1, 1);
-        let trn_img = mnist.get_trn_img();
-        let trn_lbl_onehot = mnist.get_trn_lbl_one_hot();
-
-        let (batch_data, _) = make_minibatch_data(100, &trn_img, &trn_lbl_onehot);
+        let mut rng = rand::thread_rng();
+        let batch_data = Array2::from_shape_fn((100, 100), 
+            |_| -> f64 {
+                return rng.gen::<f64>() * 2f64 + 1f64;
+            }
+        );
         batch_norm.set_value(&batch_data);
 
         let y = batch_norm.forward();
 
         let (average, distribute) = calc_distribute_and_broadcast(&y);
         assert_eq!(
-            round_digit_arr2(&average, -6),
+            round_digit_arr2(&average, -5),
             Array2::<f64>::zeros(average.dim())
         );
         assert_eq!(
-            round_digit_arr2(&distribute, -6),
+            round_digit_arr2(&distribute, -5),
             Array2::<f64>::ones(distribute.dim())
         );
 
@@ -348,5 +338,45 @@ mod batch_norm_test {
                 [4f64, 4f64, 4f64],
             ])
         )
+    }
+
+    #[test]
+    fn test_backword_average() {
+        let x = arr2(&
+            [
+                [3f64, 6f64, 9f64]
+            ]
+        );
+        let row_len: usize = 3;
+
+        let y = backword_average(&x, row_len);
+
+        assert_eq!(y, arr2(&
+            [
+                [1f64, 2f64, 3f64],
+                [1f64, 2f64, 3f64],
+                [1f64, 2f64, 3f64],
+            ]
+        ));
+
+    }
+
+    #[test]
+    fn test_backword_broadcast() {
+        let x = arr2(&
+            [
+                [1f64, 2f64, 3f64],
+                [4f64, 5f64, 6f64],
+                [7f64, 8f64, 9f64],
+            ]
+        );
+
+        let y = backword_broadcast(&x);
+
+        assert_eq!(y, arr2(&
+            [
+                [12f64, 15f64, 18f64],
+            ]
+        ));
     }
 }

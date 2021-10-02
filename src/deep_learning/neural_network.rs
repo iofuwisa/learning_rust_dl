@@ -54,7 +54,6 @@ impl NeuralNetwork {
 
         println!("Start learning");
         let (loss, rate) = self.test(parameter.batch_size, &resource.tst_data, &resource.tst_lbl_onehot);
-        println!("");
         correct_rates.push(rate);
         losses.push(loss);
         self.last_layer.prot();
