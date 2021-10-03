@@ -28,7 +28,7 @@ impl NetworkBatchNormValueLayer {
     }
 }
 impl NetworkBatchLayer for NetworkBatchNormValueLayer {
-    fn forward(&mut self) -> Array2<f64> {
+    fn forward(&mut self, is_learning: bool) -> Array2<f64> {
         self.value.clone()
     }
     fn backward(&mut self, dout: Array2<f64>) {
@@ -47,8 +47,14 @@ impl NetworkBatchLayer for NetworkBatchNormValueLayer {
     fn clean(&mut self) {
         // Nothing to do
     }
-    fn prot(&self) {
+    fn plot(&self) {
         // Nothing to do
+    }
+    fn weight_squared_sum(&self) -> f64 {
+        return 0f64;
+    }
+    fn weight_sum(&self) -> f64 {
+        return 0f64;
     }
 }
 
@@ -81,11 +87,11 @@ impl BatchNorm {
     pub fn get_x(&self) -> &Box<dyn NetworkBatchLayer> {&self.x}
 }
 impl NetworkBatchLayer for BatchNorm {
-    fn forward(&mut self) -> Array2<f64> {
+    fn forward(&mut self, is_learning: bool) -> Array2<f64> {
         if self.y.is_none() {
-            let x = self.x.forward();
-            let w = self.w.forward();
-            let b = self.b.forward();
+            let x = self.x.forward(is_learning);
+            let w = self.w.forward(is_learning);
+            let b = self.b.forward(is_learning);
 
             let (average, distribute) = calc_distribute_and_broadcast(&x);
 
@@ -106,8 +112,8 @@ impl NetworkBatchLayer for BatchNorm {
 
     // refference: https://qiita.com/t-tkd3a/items/14950dbf55f7a3095600
     fn backward(&mut self, dout: Array2<f64>) {
-        let x = self.x.forward();
-        let w = self.w.forward();
+        let x = self.x.forward(true);
+        let w = self.w.forward(true);
         let normalized = self.normalized.as_ref().unwrap();
         let distribute = self.distribute.as_ref().unwrap();
         let average = self.average.as_ref().unwrap();
@@ -181,8 +187,20 @@ impl NetworkBatchLayer for BatchNorm {
     fn clean(&mut self) {
         self.y = None;
     }
-    fn prot(&self){
-        self.x.prot();
+    fn plot(&self){
+        self.x.plot();
+    }
+    fn weight_squared_sum(&self) -> f64 {
+        return
+            self.x.weight_squared_sum() +
+            self.w.weight_squared_sum() +
+            self.b.weight_squared_sum();
+    }
+    fn weight_sum(&self) -> f64 {
+        return
+            self.x.weight_sum() +
+            self.w.weight_sum() +
+            self.b.weight_sum();
     }
 }
 
@@ -282,7 +300,7 @@ mod batch_norm_test {
         );
         batch_norm.set_value(&batch_data);
 
-        let y = batch_norm.forward();
+        let y = batch_norm.forward(false);
 
         let (average, distribute) = calc_distribute_and_broadcast(&y);
         assert_eq!(

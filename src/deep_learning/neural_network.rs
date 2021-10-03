@@ -41,8 +41,8 @@ impl NeuralNetwork {
         self.last_layer.set_lbl(lbl_onehot);
     }
 
-    pub fn forward(&mut self) -> Array2<f64> {
-        self.last_layer.forward().to_owned()
+    pub fn forward(&mut self, is_learning: bool) -> Array2<f64> {
+        self.last_layer.forward(is_learning).to_owned()
     }
     pub fn get_layers(self) -> Box::<dyn NetworkBatchLayer>{
         return self.last_layer;
@@ -51,12 +51,17 @@ impl NeuralNetwork {
     pub fn learn(&mut self, parameter: LearningParameter, resource: LearningResource) {
         let mut correct_rates = Vec::<f64>::with_capacity((parameter.iterations_num + 1) as usize);
         let mut losses = Vec::<f64>::with_capacity((parameter.iterations_num + 1) as usize);
+        let mut correct_rates_o = Vec::<f64>::with_capacity((parameter.iterations_num + 1) as usize);
+        let mut losses_o = Vec::<f64>::with_capacity((parameter.iterations_num + 1) as usize);
 
         println!("Start learning");
         let (loss, rate) = self.test(parameter.batch_size, &resource.tst_data, &resource.tst_lbl_onehot);
         correct_rates.push(rate);
         losses.push(loss);
-        self.last_layer.prot();
+        // self.last_layer.plot();
+        let (loss, rate) = self.test(parameter.batch_size, &resource.trn_data, &resource.trn_lbl_onehot);
+        correct_rates_o.push(rate);
+        losses_o.push(loss);
 
         for iteration in 0..parameter.iterations_num {
             // Choise batch data
@@ -70,8 +75,8 @@ impl NeuralNetwork {
             // Update value weight and bias
             let init_dout = Array2::<f64>::ones(
                 (
-                    self.last_layer.forward().shape()[0],
-                    self.last_layer.forward().shape()[1],
+                    self.last_layer.forward(true).shape()[0],
+                    self.last_layer.forward(true).shape()[1],
                 )
             );
             self.last_layer.backward(init_dout);
@@ -80,10 +85,15 @@ impl NeuralNetwork {
             let (loss, rate) = self.test(parameter.batch_size, &resource.tst_data, &resource.tst_lbl_onehot);
             correct_rates.push(rate);
             losses.push(loss);
+            let (loss, rate) = self.test(parameter.batch_size, &resource.trn_data, &resource.trn_lbl_onehot);
+            correct_rates_o.push(rate);
+            losses_o.push(loss);
         }
-        prot_rate(correct_rates, "correct_rate");
-        prot_loss(losses, "loss");
-        self.last_layer.prot();
+        plot_rate(correct_rates, "correct_rate");
+        plot_loss(losses, "loss");
+        plot_rate(correct_rates_o, "correct_rate_o");
+        plot_loss(losses_o, "loss_o");
+        self.last_layer.plot();
     }
 
     pub fn test(&mut self, batch_size: usize, tst_data: &Array2<f64>, tst_lbl_onehot: &Array2<f64>) -> (f64, f64){
@@ -98,12 +108,12 @@ impl NeuralNetwork {
             self.set_lbl(&batch_lbl_onehot);
 
             // Forward (skip loss)
-            let test_res = self.last_layer.forward_skip_loss();
+            let test_res = self.last_layer.forward_skip_loss(false);
 
             correct_rate += calc_correct_rate(&test_res, &batch_lbl_onehot) / 10f64;
 
             // Forwards
-            let batch_loss = self.forward();
+            let batch_loss = self.forward(false);
 
             // calc loss
             let mut loss_sum = 0f64;

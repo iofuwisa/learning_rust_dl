@@ -28,28 +28,36 @@ impl SoftmaxWithLoss {
     pub fn get_t(&self) -> &Array2<f64> {&self.t}
 }
 impl NetworkBatchLayer for SoftmaxWithLoss {
-    fn forward(&mut self) -> Array2<f64> {
+    fn forward(&mut self, is_learning: bool) -> Array2<f64> {
         if self.z.is_none() {
             
-            let x = self.x.forward();
+            let x = self.x.forward(is_learning);
 
             let softmax_res = softmax(&x);
 
             let z = crosss_entropy_error(&softmax_res, &self.t);
+
+            // // Weight decay
+            // let decay = self.weight_squared_sum().sqrt() * 0.1f64 / 2f64;
+            // let z = z + decay;
 
             self.z = Some(z);
         }
         // println!("soft for:\n{:?}", self.z.as_ref().unwrap());
         self.z.clone().unwrap()
     }
-    fn forward_skip_loss(&mut self) -> Array2<f64> {
-        self.x.forward_skip_loss()
+    fn forward_skip_loss(&mut self, is_learning: bool) -> Array2<f64> {
+        self.x.forward_skip_loss(is_learning)
     }
     fn backward(&mut self, dout: Array2<f64>) {
-        let x = self.x.forward();
+        let x = self.x.forward(true);
         let softmax_res = softmax(&x);
 
         let dx = dout * (softmax_res - &self.t);
+
+        // // Weight decay
+        // let d_decay = self.weight_sum().sqrt() * 0.1f64;
+        // let dx = dx + d_decay;
 
         self.x.backward(dx);
     }
@@ -68,8 +76,14 @@ impl NetworkBatchLayer for SoftmaxWithLoss {
     fn clean(&mut self) {
         self.z = None;
     }
-    fn prot(&self){
-        self.x.prot();
+    fn plot(&self){
+        self.x.plot();
+    }
+    fn weight_squared_sum(&self) -> f64 {
+        return self.x.weight_squared_sum();
+    }
+    fn weight_sum(&self) -> f64 {
+        return self.x.weight_sum();
     }
 }
 
@@ -239,7 +253,7 @@ mod test_softmax_with_loss_mod {
         softmaxLoss.backward(dout.clone());
 
         assert_eq!(
-            round_digit_arr2(&softmaxLoss.x.forward(), -4),
+            round_digit_arr2(&softmaxLoss.x.forward(true), -4),
             round_digit_arr2(&(arr2_x.clone()-((softmax(&arr2_x)-t)*dout*0.01)), -4)
         );
     }

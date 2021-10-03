@@ -2,7 +2,7 @@ use plotters::prelude::*;
 use chrono::Local;
 use std::path::Path;
 
-pub fn prot_rate(rates: Vec<f64>, caption: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn plot_rate(rates: Vec<f64>, caption: &str) -> Result<(), Box<dyn std::error::Error>> {
     // image size
     let image_width = 1080;
     let image_height = 720;
@@ -62,7 +62,7 @@ pub fn prot_rate(rates: Vec<f64>, caption: &str) -> Result<(), Box<dyn std::erro
     Ok(())
 }
 
-pub fn prot_loss(rates: Vec<f64>, caption: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn plot_loss(rates: Vec<f64>, caption: &str) -> Result<(), Box<dyn std::error::Error>> {
     // image size
     let image_width = 1080;
     let image_height = 720;
@@ -122,7 +122,7 @@ pub fn prot_loss(rates: Vec<f64>, caption: &str) -> Result<(), Box<dyn std::erro
     Ok(())
 }
 
-pub fn prot_histogram(data: Vec<f64>, caption: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn plot_histogram(data: Vec<f64>, caption: &str) -> Result<(), Box<dyn std::error::Error>> {
     // image size
     let image_width = 1080;
     let image_height = 720;
@@ -182,6 +182,66 @@ pub fn prot_histogram(data: Vec<f64>, caption: &str) -> Result<(), Box<dyn std::
     Ok(())
 }
 
+pub fn plot_bias_histogram(data: Vec<f64>, caption: &str) -> Result<(), Box<dyn std::error::Error>> {
+    // image size
+    let image_width = 1080;
+    let image_height = 720;
+
+    // BitMapBackend for generate file
+    let date_str = Local::now().format("%m_%d_%H_%M_%S%.f").to_string();
+    let file_path_str = "./graph/".to_string() + caption + &date_str + ".png";
+    let root = BitMapBackend::new(
+        Path::new(&file_path_str),
+        (image_width, image_height))
+    .into_drawing_area();
+
+    // Background is white
+    root.fill(&WHITE)?;
+    
+    let caption = "";
+    let font = ("sans-serif", 20);
+
+    // Count max
+    let mut max_count: u32 = 0;
+    for r in (-40..40).step_by(1) {
+        let range_low = r as f64 / 10f64;
+        let range_high = (r + 1) as f64 / 10f64;
+        let mut count = 0;
+        for d in &data {
+            if *d >= range_low && *d < range_high {
+                count += 1;
+            }
+        }
+        max_count = if max_count<count {count} else {max_count};
+    }
+
+    // Graph setting
+    let mut chart = ChartBuilder::on(&root)
+        .caption(caption, font.into_font())
+        .margin(5)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(
+            (-0.1f64..0.1f64).step(0.001).use_round().into_segmented(),
+            0u32..max_count
+        )?;
+
+    chart
+        .configure_mesh()
+        .disable_x_mesh()
+        .bold_line_style(&WHITE.mix(0.3))
+        .axis_desc_style(font)
+        .draw()?;
+
+    chart.draw_series(
+        Histogram::vertical(&chart)
+            .style(RED.mix(0.5).filled())
+            .data(data.iter().map(|x: &f64| (*x, 1))),
+    )?;
+
+    Ok(())
+}
+
 
 #[cfg(test)]
 mod graph_plotters_test {
@@ -190,15 +250,15 @@ mod graph_plotters_test {
     use crate::deep_learning::common::*;
     
     #[test]
-    fn test_prot_rate() {
+    fn test_plot_rate() {
         let data = vec![0.1, 0.5, 0.8, 0.5, 0.0, 0.5];
-        prot_rate(data, "test_rate");
+        plot_rate(data, "test_rate");
     }
 
     #[test]
-    fn test_prot_histogram() {
+    fn test_plot_histogram() {
         let data = norm_random_vec(30000);
-        prot_histogram(data, "test_histo");
+        plot_histogram(data, "test_histo");
     }
 
     #[test]

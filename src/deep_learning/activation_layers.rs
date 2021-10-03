@@ -23,15 +23,15 @@ impl ReluLayer {
     pub fn get_x(&self) -> &Box<dyn NetworkBatchLayer> {&self.x}
 }
 impl NetworkBatchLayer for ReluLayer {
-    fn forward(&mut self) -> Array2<f64> {
+    fn forward(&mut self, is_learning: bool) -> Array2<f64> {
         if self.y.is_none() {
-            let x = self.x.forward();
+            let x = self.x.forward(is_learning);
             self.y = Some(x.mapv(|n: f64| -> f64{if n > 0.0 {n} else {0.0}}));
         }
         return self.y.clone().unwrap();
     }
     fn backward(&mut self, dout: Array2<f64>) {
-        let x = self.x.forward();
+        let x = self.x.forward(true);
         if dout.shape() != x.shape() {
             panic!("Different shape. dout: {:?} x: {:?}", dout.shape(), x.shape());
         }
@@ -59,8 +59,14 @@ impl NetworkBatchLayer for ReluLayer {
     fn clean(&mut self) {
         self.y = None;
     }
-    fn prot(&self){
-        self.x.prot();
+    fn plot(&self){
+        self.x.plot();
+    }
+    fn weight_squared_sum(&self) -> f64 {
+        return self.x.weight_squared_sum();
+    }
+    fn weight_sum(&self) -> f64 {
+        return self.x.weight_sum();
     }
 }
 
@@ -83,10 +89,10 @@ impl SigmoidLayer {
 }
 impl NetworkBatchLayer for SigmoidLayer {
     // f(x) =  1 / (1 + exp(-x))
-    fn forward(&mut self) -> Array2<f64> {
+    fn forward(&mut self, is_learning: bool) -> Array2<f64> {
         if self.y.is_none() {
             // -x
-            let x = self.x.forward() * -1.0;
+            let x = self.x.forward(is_learning) * -1.0;
             // exp(-x)
             let x = x.mapv(|n: f64| -> f64 {E.powf(n)});
             // 1 + exp(-x)
@@ -100,7 +106,7 @@ impl NetworkBatchLayer for SigmoidLayer {
     }
     // f(x)' = (1 - f(x)) f(x)
     fn backward(&mut self, dout: Array2<f64>) {
-        let fx = self.forward();
+        let fx = self.forward(true);
         if dout.shape() != fx.shape() {
             panic!("Different shape. dout: {:?} fx:{:?}", dout.shape(), fx.shape());
         }
@@ -125,8 +131,14 @@ impl NetworkBatchLayer for SigmoidLayer {
     fn clean(&mut self) {
         self.y = None;
     }
-    fn prot(&self){
-        self.x.prot();
+    fn plot(&self){
+        self.x.plot();
+    }
+    fn weight_squared_sum(&self) -> f64 {
+        return self.x.weight_squared_sum();
+    }
+    fn weight_sum(&self) -> f64 {
+        return self.x.weight_sum();
     }
 }
 
@@ -149,7 +161,7 @@ mod test_relu_mod {
         ));
         let mut relu = ReluLayer::new(value);
 
-        let relu_res = relu.forward();
+        let relu_res = relu.forward(false);
         
         assert_eq!(relu_res, arr2(&
             [
@@ -200,7 +212,7 @@ mod test_sigmoid_mod {
         ));
         let mut sigmoid = SigmoidLayer::new(value);
 
-        let sigmoid_res = sigmoid.forward();
+        let sigmoid_res = sigmoid.forward(true);
         
         assert_eq!(round_digit_arr2(&sigmoid_res, -4), round_digit_arr2(&arr2(&
             [
@@ -234,9 +246,9 @@ mod test_sigmoid_mod {
         sigmoid.backward(dout.clone());
 
         assert_eq!(
-            round_digit_arr2(&sigmoid.x.forward(), -4),
+            round_digit_arr2(&sigmoid.x.forward(true), -4),
             // (1 - f(x)) f(x)
-            round_digit_arr2(&(arr2_value.clone()-(((1.0-sigmoid.forward())*sigmoid.forward())*dout*0.01)), -4)
+            round_digit_arr2(&(arr2_value.clone()-(((1.0-sigmoid.forward(true))*sigmoid.forward(true))*dout*0.01)), -4)
         );
     } 
 }

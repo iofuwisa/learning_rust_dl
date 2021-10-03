@@ -8,14 +8,16 @@ use crate::deep_learning::common::*;
 use crate::deep_learning::graph_plotter::*;
 
 pub trait NetworkBatchLayer {
-    fn forward(&mut self) -> Array2<f64>;
-    fn forward_skip_loss(&mut self) -> Array2<f64> {self.forward()}
+    fn forward(&mut self, is_learning: bool) -> Array2<f64>;
+    fn forward_skip_loss(&mut self, is_learning: bool) -> Array2<f64> {self.forward(is_learning)}
     fn backward(&mut self, _dout: Array2<f64>) {}
     fn set_value(&mut self, value: &Array2<f64>);
     fn set_lbl(&mut self, value: &Array2<f64>);
     fn clean(&mut self);
     fn is_loss_layer(&self) -> bool {false}
-    fn prot(&self);
+    fn plot(&self);
+    fn weight_squared_sum(&self) -> f64;
+    fn weight_sum(&self) -> f64;
 }
 
 // Direct value
@@ -33,7 +35,7 @@ impl NetworkBatchValueLayer {
     }
 }
 impl NetworkBatchLayer for NetworkBatchValueLayer {
-    fn forward(&mut self) -> Array2<f64> {
+    fn forward(&mut self, is_learning: bool) -> Array2<f64> {
         self.value.clone()
     }
     fn set_value(&mut self, value: &Array2<f64>) {
@@ -48,8 +50,14 @@ impl NetworkBatchLayer for NetworkBatchValueLayer {
     fn clean(&mut self) {
         // Nothing to do
     }
-    fn prot(&self){
+    fn plot(&self){
         // Nothing to do
+    }
+    fn weight_squared_sum(&self) -> f64 {
+        return 0f64;
+    }
+    fn weight_sum(&self) -> f64 {
+        return 0f64;
     }
 }
 
@@ -92,7 +100,7 @@ impl NetworkBatchAffineValueLayer {
     }
 }
 impl NetworkBatchLayer for NetworkBatchAffineValueLayer {
-    fn forward(&mut self) -> Array2<f64> {
+    fn forward(&mut self, is_learning: bool) -> Array2<f64> {
         self.value.clone()
     }
     fn backward(&mut self, dout: Array2<f64>) {
@@ -111,8 +119,27 @@ impl NetworkBatchLayer for NetworkBatchAffineValueLayer {
     fn clean(&mut self) {
         // Nothing to do
     }
-    fn prot(&self) {
-        prot_histogram(self.value.clone().into_iter().collect(), &self.name);
+    fn plot(&self) {
+        if self.value.shape()[0] == 1 {
+            plot_bias_histogram(self.value.clone().into_iter().collect(), &self.name);
+        } else {
+            plot_histogram(self.value.clone().into_iter().collect(), &self.name);
+        }
+    }
+    fn weight_squared_sum(&self) -> f64 {
+        let squared = &self.value * &self.value;
+        let mut squared_sum = 0f64;
+        for n in squared {
+            squared_sum += n;
+        }
+        return squared_sum;
+    }
+    fn weight_sum(&self) -> f64 {
+        let mut sum = 0f64;
+        for n in &self.value {
+            sum += *n;
+        }
+        return 0f64;
     }
 }
 
@@ -204,22 +231,22 @@ impl AffineLayer {
     pub fn get_b(&self) -> &Box<dyn NetworkBatchLayer> {&self.b}
 }
 impl NetworkBatchLayer for AffineLayer {
-    fn forward(&mut self) -> Array2<f64> {
+    fn forward(&mut self, is_learning: bool) -> Array2<f64> {
         if self.z.is_none() {
-            let x = self.x.forward();
-            let w = self.w.forward();
-            let b = self.b.forward();
+            let x = self.x.forward(is_learning);
+            let w = self.w.forward(is_learning);
+            let b = self.b.forward(is_learning);
             self.z = Some(x.dot(&w) + b);
         }
         self.z.clone().unwrap()
     }
     fn backward(&mut self, dout: Array2<f64>) {
-        let w = self.w.forward();
+        let w = self.w.forward(true);
         let w_t = w.t();
         let dx = dout.dot(&w_t);
         self.x.backward(dx,);
 
-        let x = self.x.forward();
+        let x = self.x.forward(true);
         let x_t = x.t();
         let dw = x_t.dot(&dout);
         self.w.backward(dw);
@@ -245,10 +272,23 @@ impl NetworkBatchLayer for AffineLayer {
     fn clean(&mut self) {
         self.z = None;
     }
-    fn prot(&self){
-        self.x.prot();
-        self.w.prot();
-        self.b.prot();
+    fn plot(&self){
+        self.x.plot();
+        self.w.plot();
+        self.b.plot();
+    }
+    fn weight_squared_sum(&self) -> f64 {
+        return 
+            self.x.weight_squared_sum() + 
+            self.w.weight_squared_sum() + 
+            self.b.weight_squared_sum();
+    }
+    fn weight_sum(&self) -> f64 {
+        let mut squared_sum = 0f64;
+            return 
+                self.x.weight_sum() + 
+                self.w.weight_sum() + 
+                self.b.weight_sum();
     }
 }
 
@@ -278,9 +318,9 @@ mod test_affine_mod {
             Sgd::new(0.01)
         );
 
-        assert_eq!(affine.x.forward().shape(), [2, 2]);
-        assert_eq!(affine.w.forward().shape(), [2, 10]);
-        assert_eq!(affine.b.forward().shape(), [1, 10]);
+        assert_eq!(affine.x.forward(true).shape(), [2, 2]);
+        assert_eq!(affine.w.forward(true).shape(), [2, 10]);
+        assert_eq!(affine.b.forward(true).shape(), [1, 10]);
         // println!("x:\n{}", affine.x.value);
         // println!("w:\n{}", affine.w.value);
         // println!("b:\n{}", affine.b.value);
@@ -308,7 +348,7 @@ mod test_affine_mod {
 
         let mut affine = AffineLayer::new(x, w, b);
 
-        let y = affine.forward();
+        let y = affine.forward(false);
         assert_eq!(y, arr2(&
             [
                 [-0.5, 1.2,  6.5],
