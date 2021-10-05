@@ -1,21 +1,23 @@
-pub mod deep_learning;
+extern crate deep_learning;
 
-// use crate::deep_learning::logical_operators::*;
-// use crate::deep_learning::activation_functions::*;
-// use crate::deep_learning::loss_functions::*;
-// use crate::deep_learning::network::*;
-use crate::deep_learning::mnist::*;
-// use crate::deep_learning::common::*;
-// use crate::deep_learning::graph_plotter::*;
-// use crate::deep_learning::network_learning::*;
-use crate::deep_learning::softmax_with_loss::*;
-use crate::deep_learning::affine_layer::*;
-use crate::deep_learning::activation_layers::*;
-use crate::deep_learning::neural_network::*;
+// use deep_learning::logical_operators::*;
+// use deep_learning::activation_functions::*;
+// use deep_learning::loss_functions::*;
+// use deep_learning::network::*;
+use deep_learning::deep_learning::mnist::*;
+// use deep_learning::deep_learning::common::*;
+// use deep_learning::deep_learning::graph_plotter::*;
+// use deep_learning::deep_learning::network_learning::*;
+use deep_learning::deep_learning::softmax_with_loss::*;
+use deep_learning::deep_learning::affine_layer::*;
+use deep_learning::deep_learning::activation_layers::*;
+use deep_learning::deep_learning::neural_network::*;
 // use crate::deep_learning::neural_network_learning::*;
-use crate::deep_learning::optimizer::*;
-use crate::deep_learning::batch_norm::*;
-use crate::deep_learning::dropout_layer::*;
+use deep_learning::deep_learning::optimizer::*;
+use deep_learning::deep_learning::batch_norm::*;
+use deep_learning::deep_learning::dropout_layer::*;
+
+use deep_learning::cnn::*;
 
 use ndarray::prelude::{
     Array2,
@@ -42,7 +44,8 @@ const ADAM_FLICTION_V: f64 = 0.999;
 
 fn main(){
     // switch_main();
-    switch_overfitting();
+    // switch_overfitting();
+    println!("{}", public());
 }
 
 fn switch_main() {
