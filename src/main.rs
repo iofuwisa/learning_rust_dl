@@ -44,8 +44,7 @@ const ADAM_FLICTION_V: f64 = 0.999;
 
 fn main(){
     // switch_main();
-    // switch_overfitting();
-    println!("{}", public());
+    switch_overfitting();
 }
 
 fn switch_main() {
