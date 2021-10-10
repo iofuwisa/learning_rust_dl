@@ -16,3 +16,4 @@ pub mod neural_network_learning;
 pub mod optimizer;
 pub mod batch_norm;
 pub mod dropout_layer;
+pub mod statistics;

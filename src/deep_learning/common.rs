@@ -65,7 +65,7 @@ pub fn round_digit(num: f64, digit: i32) -> f64 {
     if digit == 0 {
         num.round()
     } else {
-        (num * 10.0_f64.powi(-digit)).round() * 10.0_f64.powi(digit)
+        (num * 10f64.powi(-digit)).round() * 10f64.powi(digit)
     }
 }
 
