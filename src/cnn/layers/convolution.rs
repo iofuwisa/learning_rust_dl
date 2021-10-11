@@ -116,14 +116,28 @@ impl NetworkBatchLayer for Convolution {
             let x_4d = x_2d.to_shared().reshape(self.x_shape).to_owned();
 
             
-            let (_filter_num, _channel_num, filter_h, filter_w) = self.filter_shape;
+            let (batch_num, _channel_num, _data_h, _data_w) = self.x_shape;
+            let (filter_num, _channel_num, filter_h, filter_w) = self.filter_shape;
             let col_x_2d = im2col(&x_4d.to_owned(), filter_h, filter_w, self.stride, self.pad);
 
-            let col_y = filter_2d.dot(&col_x_2d.t());
+            // // // Broadcast bias rows
+            // let broadcasted_bias = broadcast_rows(&bias_2d, batch_num * filter_num);
 
-            let y = col_y.to_shared().reshape((self.y_shape.0, self.y_shape.1*self.y_shape.2*self.y_shape.3)).to_owned();
+            // println!("fil.col: {:?}", filter_2d.dot(&col_x_2d.t()));
+            // println!("bi: {:?}", broadcasted_bias);
 
-            // let y = y + bias_2d;
+            let col_y = filter_2d.dot(&col_x_2d.t()) + bias_2d;
+            // let col_y = filter_2d.dot(&col_x_2d.t()) + broadcasted_bias;
+            // let col_y = filter_2d.dot(&col_x_2d.t());
+
+            // println!("col_y: {:?}", col_y);
+
+            let mut col_y_4d = col_y.to_shared().reshape((self.y_shape.1, self.y_shape.0, self.y_shape.2, self.y_shape.3));
+            col_y_4d.swap_axes(0, 1);
+
+            let y = col_y_4d.to_shared().reshape((self.y_shape.0, self.y_shape.1*self.y_shape.2*self.y_shape.3)).to_owned();
+
+            // println!("y: {:?}", y);
 
             self.y = Some(y);
         }
@@ -210,6 +224,23 @@ fn pad_array4(data: &Array4<f64>, pad: [(usize, usize); 4]) -> Array4<f64> {
     return paded;
 }
 
+fn broadcast_rows(data: &Array2<f64>, row_num: usize) -> Array2<f64> {
+    let (origin_row, col) = data.dim();
+
+    if row_num % origin_row != 0 {
+        panic!("paniced in 'broadcast_rows'. origin_row:{} row_num:{}", origin_row, row_num);
+    }
+
+    let mut broadcasted_data = Array2::<f64>::zeros((row_num, col));
+
+    for r in 0..row_num/origin_row {
+        let mut indexed_bias = broadcasted_data.slice_mut(s![r*origin_row..(r+1)*origin_row, ..]);
+        indexed_bias.assign(data);
+    }
+
+    return broadcasted_data;
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -265,10 +296,10 @@ mod test {
 
     #[test]
     fn test_convolution_forward() {
-        // B:1, C:2 H:7 W:7
+        // B:2, C:2 H:7 W:7
         let value = NetworkBatchValueLayer::new(
             Array::from_shape_vec(
-                (1,98),
+                (2,98),
                 vec![
                     01f64, 02f64, 03f64, 04f64, 05f64, 06f64, 07f64,
                     11f64, 12f64, 13f64, 14f64, 15f64, 16f64, 17f64,
@@ -285,6 +316,22 @@ mod test {
                     141f64, 142f64, 143f64, 144f64, 145f64, 146f64, 147f64,
                     151f64, 152f64, 153f64, 154f64, 155f64, 156f64, 157f64,
                     161f64, 162f64, 163f64, 164f64, 165f64, 166f64, 167f64,
+
+                    201f64, 202f64, 203f64, 204f64, 205f64, 306f64, 307f64,
+                    211f64, 212f64, 213f64, 214f64, 215f64, 316f64, 317f64,
+                    221f64, 222f64, 223f64, 224f64, 225f64, 326f64, 327f64,
+                    231f64, 232f64, 233f64, 234f64, 235f64, 336f64, 337f64,
+                    241f64, 242f64, 243f64, 244f64, 245f64, 346f64, 347f64,
+                    251f64, 252f64, 253f64, 254f64, 255f64, 356f64, 357f64,
+                    261f64, 262f64, 263f64, 264f64, 265f64, 366f64, 367f64,
+
+                    401f64, 402f64, 403f64, 404f64, 405f64, 406f64, 407f64,
+                    411f64, 412f64, 413f64, 414f64, 415f64, 416f64, 417f64,
+                    421f64, 422f64, 423f64, 424f64, 425f64, 426f64, 427f64,
+                    431f64, 432f64, 433f64, 434f64, 435f64, 436f64, 437f64,
+                    441f64, 442f64, 443f64, 444f64, 445f64, 446f64, 447f64,
+                    451f64, 452f64, 453f64, 454f64, 455f64, 456f64, 457f64,
+                    461f64, 462f64, 463f64, 464f64, 465f64, 466f64, 467f64,
                 ]
             ).ok().unwrap()
         );
@@ -309,32 +356,23 @@ mod test {
         // FN:9
         let bias = NetworkBatchValueLayer::new(
             Array::from_shape_vec(
-                (1,9),
+                (9,1),
                 vec![
-                    // 01f64,
-                    // 02f64,
-                    // 03f64,
-                    // 04f64,
-                    // 05f64,
-                    // 06f64,
-                    // 07f64,
-                    // 08f64,
-                    // 09f64,
-                    0f64,
-                    0f64,
-                    0f64,
-                    0f64,
-                    0f64,
-                    0f64,
-                    0f64,
-                    0f64,
-                    0f64,
+                    01f64,
+                    02f64,
+                    03f64,
+                    04f64,
+                    05f64,
+                    06f64,
+                    07f64,
+                    08f64,
+                    09f64,
                 ]
             ).ok().unwrap()
         );
         let stride = 2;
         let pad = 0;
-        let mut conv = Convolution::new(value, filter, bias, (1, 2 ,7, 7), (1, 9, 3, 3), (9, 2 ,3, 3), stride, pad);
+        let mut conv = Convolution::new(value, filter, bias, (2, 2 ,7, 7), (2, 9, 3, 3), (9, 2 ,3, 3), stride, pad);
 
         let y = conv.forward(false);
 
@@ -349,21 +387,21 @@ mod test {
                 conv.stride,
                 conv.pad
             );
-        assert_eq!(verification_y_2d, y);
+        assert_eq!(y, verification_y_2d);
     }
 
     #[test]
     fn test_convolution_im2col() {
         let data = Array::from_shape_vec(
-            (1,2,7,7),
+            (2,2,7,7),
             vec![
-                01f64, 02f64, 03f64, 04f64, 05f64, 06f64, 07f64,
-                11f64, 12f64, 13f64, 14f64, 15f64, 16f64, 17f64,
-                21f64, 22f64, 23f64, 24f64, 25f64, 26f64, 27f64,
-                31f64, 32f64, 33f64, 34f64, 35f64, 36f64, 37f64,
-                41f64, 42f64, 43f64, 44f64, 45f64, 46f64, 47f64,
-                51f64, 52f64, 53f64, 54f64, 55f64, 56f64, 57f64,
-                61f64, 62f64, 63f64, 64f64, 65f64, 66f64, 67f64,
+                001f64, 002f64, 003f64, 004f64, 005f64, 006f64, 007f64,
+                011f64, 012f64, 013f64, 014f64, 015f64, 016f64, 017f64,
+                021f64, 022f64, 023f64, 024f64, 025f64, 026f64, 027f64,
+                031f64, 032f64, 033f64, 034f64, 035f64, 036f64, 037f64,
+                041f64, 042f64, 043f64, 044f64, 045f64, 046f64, 047f64,
+                051f64, 052f64, 053f64, 054f64, 055f64, 056f64, 057f64,
+                061f64, 062f64, 063f64, 064f64, 065f64, 066f64, 067f64,
 
                 101f64, 102f64, 103f64, 104f64, 105f64, 106f64, 107f64,
                 111f64, 112f64, 113f64, 114f64, 115f64, 116f64, 117f64,
@@ -372,21 +410,47 @@ mod test {
                 141f64, 142f64, 143f64, 144f64, 145f64, 146f64, 147f64,
                 151f64, 152f64, 153f64, 154f64, 155f64, 156f64, 157f64,
                 161f64, 162f64, 163f64, 164f64, 165f64, 166f64, 167f64,
+
+                201f64, 202f64, 203f64, 204f64, 205f64, 206f64, 207f64,
+                211f64, 212f64, 213f64, 214f64, 215f64, 216f64, 217f64,
+                221f64, 222f64, 223f64, 224f64, 225f64, 226f64, 227f64,
+                231f64, 232f64, 233f64, 234f64, 235f64, 236f64, 237f64,
+                241f64, 242f64, 243f64, 244f64, 245f64, 246f64, 247f64,
+                251f64, 252f64, 253f64, 254f64, 255f64, 256f64, 257f64,
+                261f64, 262f64, 263f64, 264f64, 265f64, 266f64, 267f64,
+
+                301f64, 302f64, 303f64, 304f64, 305f64, 306f64, 307f64,
+                311f64, 312f64, 313f64, 314f64, 315f64, 316f64, 317f64,
+                321f64, 322f64, 323f64, 324f64, 325f64, 326f64, 327f64,
+                331f64, 332f64, 333f64, 334f64, 335f64, 336f64, 337f64,
+                341f64, 342f64, 343f64, 344f64, 345f64, 346f64, 347f64,
+                351f64, 352f64, 353f64, 354f64, 355f64, 356f64, 357f64,
+                361f64, 362f64, 363f64, 364f64, 365f64, 366f64, 367f64,
             ]
         ).ok().unwrap();
 
         let expect = Array::from_shape_vec(
-            (9, 18),
+            (18, 18),
             vec![
-                01f64, 02f64, 03f64, 11f64, 12f64, 13f64, 21f64, 22f64, 23f64,101f64, 102f64, 103f64, 111f64, 112f64, 113f64, 121f64, 122f64, 123f64,
-                03f64, 04f64, 05f64, 13f64, 14f64, 15f64, 23f64, 24f64, 25f64,103f64, 104f64, 105f64, 113f64, 114f64, 115f64, 123f64, 124f64, 125f64,
-                05f64, 06f64, 07f64, 15f64, 16f64, 17f64, 25f64, 26f64, 27f64,105f64, 106f64, 107f64, 115f64, 116f64, 117f64, 125f64, 126f64, 127f64,
-                21f64, 22f64, 23f64, 31f64, 32f64, 33f64, 41f64, 42f64, 43f64,121f64, 122f64, 123f64, 131f64, 132f64, 133f64, 141f64, 142f64, 143f64,
-                23f64, 24f64, 25f64, 33f64, 34f64, 35f64, 43f64, 44f64, 45f64,123f64, 124f64, 125f64, 133f64, 134f64, 135f64, 143f64, 144f64, 145f64,
-                25f64, 26f64, 27f64, 35f64, 36f64, 37f64, 45f64, 46f64, 47f64,125f64, 126f64, 127f64, 135f64, 136f64, 137f64, 145f64, 146f64, 147f64, 
-                41f64, 42f64, 43f64, 51f64, 52f64, 53f64, 61f64, 62f64, 63f64,141f64, 142f64, 143f64, 151f64, 152f64, 153f64, 161f64, 162f64, 163f64,
-                43f64, 44f64, 45f64, 53f64, 54f64, 55f64, 63f64, 64f64, 65f64,143f64, 144f64, 145f64, 153f64, 154f64, 155f64, 163f64, 164f64, 165f64,
-                45f64, 46f64, 47f64, 55f64, 56f64, 57f64, 65f64, 66f64, 67f64,145f64, 146f64, 147f64, 155f64, 156f64, 157f64, 165f64, 166f64, 167f64,
+                001f64, 002f64, 003f64, 011f64, 012f64, 013f64, 021f64, 022f64, 023f64,  101f64, 102f64, 103f64, 111f64, 112f64, 113f64, 121f64, 122f64, 123f64,
+                003f64, 004f64, 005f64, 013f64, 014f64, 015f64, 023f64, 024f64, 025f64,  103f64, 104f64, 105f64, 113f64, 114f64, 115f64, 123f64, 124f64, 125f64,
+                005f64, 006f64, 007f64, 015f64, 016f64, 017f64, 025f64, 026f64, 027f64,  105f64, 106f64, 107f64, 115f64, 116f64, 117f64, 125f64, 126f64, 127f64,
+                021f64, 022f64, 023f64, 031f64, 032f64, 033f64, 041f64, 042f64, 043f64,  121f64, 122f64, 123f64, 131f64, 132f64, 133f64, 141f64, 142f64, 143f64,
+                023f64, 024f64, 025f64, 033f64, 034f64, 035f64, 043f64, 044f64, 045f64,  123f64, 124f64, 125f64, 133f64, 134f64, 135f64, 143f64, 144f64, 145f64,
+                025f64, 026f64, 027f64, 035f64, 036f64, 037f64, 045f64, 046f64, 047f64,  125f64, 126f64, 127f64, 135f64, 136f64, 137f64, 145f64, 146f64, 147f64, 
+                041f64, 042f64, 043f64, 051f64, 052f64, 053f64, 061f64, 062f64, 063f64,  141f64, 142f64, 143f64, 151f64, 152f64, 153f64, 161f64, 162f64, 163f64,
+                043f64, 044f64, 045f64, 053f64, 054f64, 055f64, 063f64, 064f64, 065f64,  143f64, 144f64, 145f64, 153f64, 154f64, 155f64, 163f64, 164f64, 165f64,
+                045f64, 046f64, 047f64, 055f64, 056f64, 057f64, 065f64, 066f64, 067f64,  145f64, 146f64, 147f64, 155f64, 156f64, 157f64, 165f64, 166f64, 167f64,
+
+                201f64, 202f64, 203f64, 211f64, 212f64, 213f64, 221f64, 222f64, 223f64,  301f64, 302f64, 303f64, 311f64, 312f64, 313f64, 321f64, 322f64, 323f64,
+                203f64, 204f64, 205f64, 213f64, 214f64, 215f64, 223f64, 224f64, 225f64,  303f64, 304f64, 305f64, 313f64, 314f64, 315f64, 323f64, 324f64, 325f64,
+                205f64, 206f64, 207f64, 215f64, 216f64, 217f64, 225f64, 226f64, 227f64,  305f64, 306f64, 307f64, 315f64, 316f64, 317f64, 325f64, 326f64, 327f64,
+                221f64, 222f64, 223f64, 231f64, 232f64, 233f64, 241f64, 242f64, 243f64,  321f64, 322f64, 323f64, 331f64, 332f64, 333f64, 341f64, 342f64, 343f64,
+                223f64, 224f64, 225f64, 233f64, 234f64, 235f64, 243f64, 244f64, 245f64,  323f64, 324f64, 325f64, 333f64, 334f64, 335f64, 343f64, 344f64, 345f64,
+                225f64, 226f64, 227f64, 235f64, 236f64, 237f64, 245f64, 246f64, 247f64,  325f64, 326f64, 327f64, 335f64, 336f64, 337f64, 345f64, 346f64, 347f64,
+                241f64, 242f64, 243f64, 251f64, 252f64, 253f64, 261f64, 262f64, 263f64,  341f64, 342f64, 343f64, 351f64, 352f64, 353f64, 361f64, 362f64, 363f64,
+                243f64, 244f64, 245f64, 253f64, 254f64, 255f64, 263f64, 264f64, 265f64,  343f64, 344f64, 345f64, 353f64, 354f64, 355f64, 363f64, 364f64, 365f64,
+                245f64, 246f64, 247f64, 255f64, 256f64, 257f64, 265f64, 266f64, 267f64,  345f64, 346f64, 347f64, 355f64, 356f64, 357f64, 365f64, 366f64, 367f64,
             ]
         ).ok().unwrap();
 
@@ -649,6 +713,29 @@ mod test {
         assert_eq!(paded, expect_data);
     }
 
+    #[test]
+    fn test_convolution_broadcast_rows() {
+        let data = arr2(&
+            [
+                [1f64, 2f64],
+                [2f64, 3f64],
+                [3f64, 4f64],
+            ]
+        );
+
+        assert_eq!(arr2(&
+            [
+                [1f64, 2f64],
+                [2f64, 3f64],
+                [3f64, 4f64],
+                [1f64, 2f64],
+                [2f64, 3f64],
+                [3f64, 4f64],
+            ]),
+            broadcast_rows(&data, 6)
+        );
+    }
+
     fn verification_forward(
         x: Array2<f64>,
         filter: Array2<f64>,
@@ -677,12 +764,12 @@ mod test {
 
         let mut y_4d = Array4::<f64>::zeros(y_shape);
 
-        println!("y_shape: {:?}", y_shape);
+        // println!("y_shape: {:?}", y_shape);
 
         for batch in 0..y_b {  
             for filter_index in 0..y_c {  
                 let indexed_filter = filter_4d.index_axis(Axis(0), filter_index);
-                let indexed_bias = bias[(0, filter_index)];
+                let indexed_bias = bias[(filter_index, 0)];
                 for st_h in 0..stride_count_h {
                     let img_index_h = st_h * stride;
                     for st_w in 0..stride_count_w {
@@ -712,4 +799,5 @@ mod test {
 
         return y_2d;
     }
+
 }
