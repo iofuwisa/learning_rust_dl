@@ -202,6 +202,10 @@ fn im2col(input_data: &Array4<f64>, filter_h: usize, filter_w: usize, stride: us
     return col_2d;
 }
 
+fn col2im(col: &Array2<f64>, filter_h: usize, filter_w: usize, stride: usize, pad: usize) -> Array4<f64> {
+    return Array4::<f64>::zeros((0,0,0,0));
+}
+
 fn pad_array4(data: &Array4<f64>, pad: [(usize, usize); 4]) -> Array4<f64> {
     let paded_shape = [
         data.shape()[0] + pad[0].0 + pad[0].1,
@@ -458,6 +462,35 @@ mod test {
 
         assert_eq!(col, expect);
 
+    }
+
+    #[test]
+    fn test_convolution_col2im() {
+        let col = Array::from_shape_vec(
+            (8, 18),
+            vec![
+                001f64, 002f64, 003f64, 004f64, 005f64, 006f64, 007f64, 008f64, 009f64,  041f64, 042f64, 043f64, 044f64, 045f64, 046f64, 047f64, 048f64, 049f64,
+                011f64, 012f64, 013f64, 014f64, 015f64, 016f64, 017f64, 018f64, 019f64,  051f64, 052f64, 053f64, 054f64, 055f64, 056f64, 057f64, 058f64, 059f64,
+                021f64, 022f64, 023f64, 024f64, 025f64, 026f64, 027f64, 028f64, 029f64,  061f64, 062f64, 063f64, 064f64, 065f64, 066f64, 067f64, 068f64, 069f64,
+                031f64, 032f64, 033f64, 034f64, 035f64, 036f64, 037f64, 038f64, 039f64,  071f64, 072f64, 073f64, 074f64, 075f64, 076f64, 077f64, 078f64, 079f64,
+                
+                101f64, 102f64, 103f64, 104f64, 105f64, 106f64, 107f64, 108f64, 109f64,  141f64, 142f64, 143f64, 144f64, 145f64, 146f64, 147f64, 148f64, 149f64,
+                111f64, 112f64, 113f64, 114f64, 115f64, 116f64, 117f64, 118f64, 119f64,  151f64, 152f64, 153f64, 154f64, 155f64, 156f64, 157f64, 158f64, 159f64,
+                121f64, 122f64, 123f64, 124f64, 125f64, 126f64, 127f64, 128f64, 129f64,  161f64, 162f64, 163f64, 164f64, 165f64, 166f64, 167f64, 168f64, 169f64,
+                131f64, 132f64, 133f64, 134f64, 135f64, 136f64, 137f64, 138f64, 139f64,  171f64, 172f64, 173f64, 174f64, 175f64, 176f64, 177f64, 178f64, 179f64,
+            ]
+        ).ok().unwrap();
+        // let col = Array2::<f64>::ones((8, 18));
+
+        let im = verification_col2im(
+            &col,
+            (2,2,4,4),
+            (1,2,3,3),
+            1,
+            0
+        );
+
+        println!("{:?}", im);
     }
 
     #[test]
@@ -798,6 +831,38 @@ mod test {
         let y_2d = y_4d.to_shared().reshape((y_b, y_c*y_h*y_w)).to_owned();
 
         return y_2d;
+    }
+
+    fn verification_col2im(
+        col: &Array2<f64>,
+        img_shape: (usize, usize, usize, usize),
+        filter_shape: (usize, usize, usize, usize),
+        stride: usize,
+        pad: usize,
+    ) -> Array4<f64> {
+
+        let (batch_num, channel_num, img_h, img_w) = img_shape;
+        let (filter_num, _, filter_h, filter_w) = filter_shape;
+
+        let step_h = (img_h + 2 * pad - filter_h) / stride + 1;
+        let step_w = (img_w + 2 * pad - filter_w) / stride + 1;
+
+        let mut img = Array4::<f64>::zeros(img_shape);
+
+        for b in 0..batch_num {
+            for f in 0..filter_num {
+                for s_h in 0..step_h {
+                    for s_w in 0..step_w {
+                        let mut ranged_img = img.slice_mut(s![b, .., s_h..s_h+filter_h, s_w..s_w+filter_w]);
+                        let indexed_col = col.index_axis(Axis(0), b*filter_num*step_h*step_w + f*step_h*step_w + s_h*step_w + s_w);
+
+                        ranged_img.assign(&(&ranged_img+indexed_col.to_owned().to_shared().reshape((channel_num, filter_h, filter_w))));
+                    }   
+                }
+            }
+        }
+
+        return img;
     }
 
 }
