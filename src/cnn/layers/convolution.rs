@@ -202,8 +202,37 @@ fn im2col(input_data: &Array4<f64>, filter_h: usize, filter_w: usize, stride: us
     return col_2d;
 }
 
-fn col2im(col: &Array2<f64>, filter_h: usize, filter_w: usize, stride: usize, pad: usize) -> Array4<f64> {
-    return Array4::<f64>::zeros((0,0,0,0));
+fn col2im(
+    col: &Array2<f64>,
+    img_shape: (usize, usize, usize, usize),
+    filter_shape: (usize, usize, usize, usize),
+    stride: usize,
+    pad: usize
+) -> Array4<f64> {
+    let (batch_num, channel_num, img_h, img_w) = img_shape;
+    let (filter_num, _, filter_h, filter_w) = filter_shape;
+
+    let step_h = (img_h + 2 * pad - filter_h) / stride + 1;
+    let step_w = (img_w + 2 * pad - filter_w) / stride + 1;
+
+    let mut img = Array4::<f64>::zeros(img_shape);
+
+    let mut col_6d = col.to_shared().reshape((batch_num, step_h, step_w, channel_num, filter_h, filter_w));
+    col_6d.swap_axes(4, 5);
+    col_6d.swap_axes(3, 4);
+    col_6d.swap_axes(2, 5);
+    col_6d.swap_axes(1, 4);
+
+    for f_h in 0..filter_h {
+        for f_w in 0..filter_w {
+            let mut ranged_img = img.slice_mut(s![.., .., f_h..=img_h-filter_h+f_h;stride, f_w..=img_w-filter_w+f_w;stride]);
+            let mut ranged_col = col_6d.slice_mut(s![.., .., f_h, f_w, .., ..]);
+            
+            let shaped_ranged_col = ranged_col.to_owned().to_shared().reshape((batch_num, channel_num, step_h, step_w));
+            ranged_img.assign(&(&ranged_img + shaped_ranged_col));
+        }
+    }
+    return img;
 }
 
 fn pad_array4(data: &Array4<f64>, pad: [(usize, usize); 4]) -> Array4<f64> {
@@ -482,7 +511,7 @@ mod test {
         ).ok().unwrap();
         // let col = Array2::<f64>::ones((8, 18));
 
-        let im = verification_col2im(
+        let im = col2im(
             &col,
             (2,2,4,4),
             (1,2,3,3),
@@ -490,7 +519,15 @@ mod test {
             0
         );
 
-        println!("{:?}", im);
+        let im_expect = verification_col2im(
+            &col,
+            (2,2,4,4),
+            (1,2,3,3),
+            1,
+            0
+        );
+
+        assert_eq!(im, im_expect);
     }
 
     #[test]
