@@ -4,6 +4,7 @@ use ndarray::{
     Array4,
     Array6,
 };
+use ndarray::Axis;
 
 use super::super::super::deep_learning::affine_layer::*;
 use super::super::super::deep_learning::optimizer::*;
@@ -112,24 +113,14 @@ impl NetworkBatchLayer for Convolution {
             let filter_2d = self.filter.forward(is_learning);
             let bias_2d = self.bias.forward(is_learning);           
 
-            // Reshape to 4d from 2d
+            // Reshape to 4d
             let x_4d = x_2d.to_shared().reshape(self.x_shape).to_owned();
-
             
             let (batch_num, _channel_num, _data_h, _data_w) = self.x_shape;
             let (filter_num, _channel_num, filter_h, filter_w) = self.filter_shape;
             let col_x_2d = im2col(&x_4d.to_owned(), filter_h, filter_w, self.stride, self.pad);
 
-            // // // Broadcast bias rows
-            // let broadcasted_bias = broadcast_rows(&bias_2d, batch_num * filter_num);
-
-            // println!("fil.col: {:?}", filter_2d.dot(&col_x_2d.t()));
-            // println!("bi: {:?}", broadcasted_bias);
-
             let col_y = filter_2d.dot(&col_x_2d.t()) + bias_2d;
-            // let col_y = filter_2d.dot(&col_x_2d.t()) + broadcasted_bias;
-            // let col_y = filter_2d.dot(&col_x_2d.t());
-
             // println!("col_y: {:?}", col_y);
 
             let mut col_y_4d = col_y.to_shared().reshape((self.y_shape.1, self.y_shape.0, self.y_shape.2, self.y_shape.3));
@@ -144,7 +135,35 @@ impl NetworkBatchLayer for Convolution {
 
         return self.y.clone().unwrap();
     }
-    fn backward(&mut self, _dout: Array2<f64>) {}
+    fn backward(&mut self, dout: Array2<f64>) {
+        let (batch_num, _, step_h, step_w) = self.y_shape;
+        let (filter_num, channel_num, filter_h, filter_w) = self.filter_shape;
+
+        let mut dout_4d = dout.to_shared().reshape((batch_num, filter_num, step_h, step_w));
+        // (0, 1, 2, 3) -> (1, 0, 2, 3)
+        dout_4d.swap_axes(0, 1);
+        let dout_2d = dout_4d.to_shared().reshape((filter_num, batch_num*step_h*step_w));
+        let db = dout_2d.sum_axis(Axis(1)).to_shared().reshape((filter_num, 1)).to_owned();
+        // println!("db: {:?}", db);
+        self.bias.backward(db);
+
+        let x_2d = self.x.forward(true);
+        let x_4d = x_2d.to_shared().reshape(self.x_shape).to_owned();
+        let col_x_2d = im2col(&x_4d.to_owned(), filter_h, filter_w, self.stride, self.pad);
+
+        let dout_2d = dout_2d.to_shared().reshape((filter_num*batch_num, step_h*step_w));
+        let mut col_dout = col_x_2d.t().dot(&dout_2d);
+        col_dout.swap_axes(0, 1);
+        let df = col_dout.to_owned().to_shared().reshape((filter_num, channel_num*filter_h*filter_w)).to_owned();
+        self.filter.backward(df);
+
+        // let filter_2d = self.filter.forward(true);
+        // let dcol = dout.dot(&filter_2d.t());
+        // let dx = col2im(&dcol, self.x_shape, self.filter_shape, self.stride, self.pad);
+        // let (batch_num, channel_num, data_h, data_w) = self.x_shape;
+        // let dx = dx.to_shared().reshape((batch_num, channel_num*data_h*data_w)).to_owned();
+        // self.x.backward(dx);
+    }
     fn set_value(&mut self, value: &Array2<f64>) {
         self.x.set_value(value);
         self.clean();
@@ -277,7 +296,8 @@ fn broadcast_rows(data: &Array2<f64>, row_num: usize) -> Array2<f64> {
 #[cfg(test)]
 mod test {
     use super::*;
-
+    
+    use mockall::{predicate::*};
     use ndarray::{
         Array,
         Axis,
@@ -421,6 +441,216 @@ mod test {
                 conv.pad
             );
         assert_eq!(y, verification_y_2d);
+    }
+
+    #[test]
+    fn test_convolution_backword_filter() {
+        // B:2, C:2 H:7 W:7
+        let dout = Array::from_shape_vec(
+            (2,98),
+            vec![
+                001f64, 002f64, 003f64, 004f64, 005f64, 006f64, 007f64,
+                011f64, 012f64, 013f64, 014f64, 015f64, 016f64, 017f64,
+                021f64, 022f64, 023f64, 024f64, 025f64, 026f64, 027f64,
+                031f64, 032f64, 033f64, 034f64, 035f64, 036f64, 037f64,
+                041f64, 042f64, 043f64, 044f64, 045f64, 046f64, 047f64,
+                051f64, 052f64, 053f64, 054f64, 055f64, 056f64, 057f64,
+                061f64, 062f64, 063f64, 064f64, 065f64, 066f64, 067f64,
+                                                                       
+                101f64, 102f64, 103f64, 104f64, 105f64, 106f64, 107f64,
+                111f64, 112f64, 113f64, 114f64, 115f64, 116f64, 117f64,
+                121f64, 122f64, 123f64, 124f64, 125f64, 126f64, 127f64,
+                131f64, 132f64, 133f64, 134f64, 135f64, 136f64, 137f64,
+                141f64, 142f64, 143f64, 144f64, 145f64, 146f64, 147f64,
+                151f64, 152f64, 153f64, 154f64, 155f64, 156f64, 157f64,
+                161f64, 162f64, 163f64, 164f64, 165f64, 166f64, 167f64,
+                                                                       
+                201f64, 202f64, 203f64, 204f64, 205f64, 206f64, 207f64,
+                211f64, 212f64, 213f64, 214f64, 215f64, 216f64, 217f64,
+                221f64, 222f64, 223f64, 224f64, 225f64, 226f64, 227f64,
+                231f64, 232f64, 233f64, 234f64, 235f64, 236f64, 237f64,
+                241f64, 242f64, 243f64, 244f64, 245f64, 246f64, 247f64,
+                251f64, 252f64, 253f64, 254f64, 255f64, 256f64, 257f64,
+                261f64, 262f64, 263f64, 264f64, 265f64, 266f64, 267f64,
+                                                                       
+                301f64, 302f64, 303f64, 304f64, 305f64, 306f64, 307f64,
+                311f64, 312f64, 313f64, 314f64, 315f64, 316f64, 317f64,
+                321f64, 322f64, 323f64, 324f64, 325f64, 326f64, 327f64,
+                331f64, 332f64, 333f64, 334f64, 335f64, 336f64, 337f64,
+                341f64, 342f64, 343f64, 344f64, 345f64, 346f64, 347f64,
+                351f64, 352f64, 353f64, 354f64, 355f64, 356f64, 357f64,
+                361f64, 362f64, 363f64, 364f64, 365f64, 366f64, 367f64,
+            ]
+        ).ok().unwrap();
+
+        let mut x = MockNetworkBatchLayer::new();
+        x.expect_forward()
+            .returning(|_| -> Array2<f64> {
+                // B:2, C:2 H:7 W:7
+                Array2::<f64>::zeros((2,98))
+            })
+        ;
+        x.expect_backward()
+            .returning(|_| {})
+        ;
+        
+        let df_expect = Array::from_shape_vec(
+            (2,1),
+            vec![
+                1666f64+11466f64,
+                6566f64+16366f64,
+            ]
+        ).ok().unwrap();
+        // println!("df_expect: {:?}", df_expect);
+        let mut filter = MockNetworkBatchLayer::new();
+        filter.expect_forward()
+            .times(1)
+            .returning(|_| -> Array2<f64> {
+                // FN:2, C:2 FH:3 FW:3
+                Array::from_shape_vec(
+                    (2,18),
+                    vec![
+                        001f64, 002f64, 003f64, 004f64, 005f64, 006f64, 007f64, 008f64, 009f64,
+                        010f64, 020f64, 030f64, 040f64, 050f64, 060f64, 070f64, 080f64, 090f64,
+        
+                        101f64, 102f64, 103f64, 104f64, 105f64, 106f64, 107f64, 108f64, 109f64,
+                        110f64, 120f64, 130f64, 140f64, 150f64, 160f64, 170f64, 180f64, 190f64,
+                    ]
+                ).ok().unwrap()
+            })
+        ;
+        filter.expect_backward()
+            .times(1)
+            .with(eq(df_expect))
+            .returning(|_| {})
+        ;
+        
+        let mut bias = MockNetworkBatchLayer::new();
+        bias.expect_forward()
+            .returning(|_| -> Array2<f64> {
+                // FN:2
+                Array::from_shape_vec(
+                    (2,1),
+                    vec![
+                        001f64,
+                        002f64,
+                    ]
+                ).ok().unwrap()
+            })
+        ;
+        bias.expect_backward()
+            .returning(|_| {})
+        ;
+        let stride = 2;
+        let pad = 0;
+        let mut conv = Convolution::new(x, filter, bias, (2, 2 ,7, 7), (2, 2, 7, 7), (2, 2 ,3, 3), stride, pad);
+
+        conv.backward(dout);
+    }
+
+
+    #[test]
+    fn test_convolution_backword_bias() {
+        // B:2, C:2 H:7 W:7
+        let dout = Array::from_shape_vec(
+            (2,98),
+            vec![                                                       // sum
+                001f64, 002f64, 003f64, 004f64, 005f64, 006f64, 007f64, // 28
+                011f64, 012f64, 013f64, 014f64, 015f64, 016f64, 017f64, // 98 
+                021f64, 022f64, 023f64, 024f64, 025f64, 026f64, 027f64, // 168
+                031f64, 032f64, 033f64, 034f64, 035f64, 036f64, 037f64, // 238
+                041f64, 042f64, 043f64, 044f64, 045f64, 046f64, 047f64, // 308
+                051f64, 052f64, 053f64, 054f64, 055f64, 056f64, 057f64, // 378
+                061f64, 062f64, 063f64, 064f64, 065f64, 066f64, 067f64, // 448
+                                                                        // 1666
+                101f64, 102f64, 103f64, 104f64, 105f64, 106f64, 107f64, // 728
+                111f64, 112f64, 113f64, 114f64, 115f64, 116f64, 117f64, // 798
+                121f64, 122f64, 123f64, 124f64, 125f64, 126f64, 127f64, // 868
+                131f64, 132f64, 133f64, 134f64, 135f64, 136f64, 137f64, // 938
+                141f64, 142f64, 143f64, 144f64, 145f64, 146f64, 147f64, // 1008
+                151f64, 152f64, 153f64, 154f64, 155f64, 156f64, 157f64, // 1078
+                161f64, 162f64, 163f64, 164f64, 165f64, 166f64, 167f64, // 1148
+                                                                        // 6566
+                201f64, 202f64, 203f64, 204f64, 205f64, 206f64, 207f64, // 1428
+                211f64, 212f64, 213f64, 214f64, 215f64, 216f64, 217f64, // 1498
+                221f64, 222f64, 223f64, 224f64, 225f64, 226f64, 227f64, // 1568
+                231f64, 232f64, 233f64, 234f64, 235f64, 236f64, 237f64, // 1638
+                241f64, 242f64, 243f64, 244f64, 245f64, 246f64, 247f64, // 1708
+                251f64, 252f64, 253f64, 254f64, 255f64, 256f64, 257f64, // 1778
+                261f64, 262f64, 263f64, 264f64, 265f64, 266f64, 267f64, // 1848
+                                                                        // 11466
+                301f64, 302f64, 303f64, 304f64, 305f64, 306f64, 307f64, // 2128
+                311f64, 312f64, 313f64, 314f64, 315f64, 316f64, 317f64, // 2198
+                321f64, 322f64, 323f64, 324f64, 325f64, 326f64, 327f64, // 2208
+                331f64, 332f64, 333f64, 334f64, 335f64, 336f64, 337f64, // 2338
+                341f64, 342f64, 343f64, 344f64, 345f64, 346f64, 347f64, // 2468
+                351f64, 352f64, 353f64, 354f64, 355f64, 356f64, 357f64, // 2478
+                361f64, 362f64, 363f64, 364f64, 365f64, 366f64, 367f64, // 2548
+            ]                                                           // 16366
+        ).ok().unwrap();
+
+        let mut x = MockNetworkBatchLayer::new();
+        x.expect_forward()
+            .returning(|_| -> Array2<f64> {
+                // B:2, C:2 H:7 W:7
+                Array2::<f64>::zeros((2,98))
+            })
+        ;
+        x.expect_backward()
+            .returning(|_| {})
+        ;
+        
+        let mut filter = MockNetworkBatchLayer::new();
+        filter.expect_forward()
+            .returning(|_| -> Array2<f64> {
+                // FN:2, C:2 FH:3 FW:3
+                Array::from_shape_vec(
+                    (2,18),
+                    vec![
+                        001f64, 002f64, 003f64, 004f64, 005f64, 006f64, 007f64, 008f64, 009f64,
+                        010f64, 020f64, 030f64, 040f64, 050f64, 060f64, 070f64, 080f64, 090f64,
+        
+                        101f64, 102f64, 103f64, 104f64, 105f64, 106f64, 107f64, 108f64, 109f64,
+                        110f64, 120f64, 130f64, 140f64, 150f64, 160f64, 170f64, 180f64, 190f64,
+                    ]
+                ).ok().unwrap()
+            })
+        ;
+        filter.expect_backward()
+            .returning(|_| {})
+        ;
+        
+        let db_expect = Array::from_shape_vec(
+            (2,1),
+            vec![
+                1666f64+11466f64,
+                6566f64+16366f64,
+            ]
+        ).ok().unwrap();
+        // println!("db_expect: {:?}", db_expect);
+        let mut bias = MockNetworkBatchLayer::new();
+        bias.expect_forward()
+            .returning(|_| -> Array2<f64> {
+                // FN:2
+                Array::from_shape_vec(
+                    (2,1),
+                    vec![
+                        001f64,
+                        002f64,
+                    ]
+                ).ok().unwrap()
+            })
+        ;
+        bias.expect_backward()
+            .times(1)
+            .with(eq(db_expect))
+            .returning(|_| {})
+        ;
+        let stride = 2;
+        let pad = 0;
+        let mut conv = Convolution::new(x, filter, bias, (2, 2 ,7, 7), (2, 2, 7, 7), (2, 2 ,3, 3), stride, pad);
+
+        conv.backward(dout);
     }
 
     #[test]
@@ -902,4 +1132,13 @@ mod test {
         return img;
     }
 
+    #[test]
+    fn mocktest()  {
+        let mut mock = MockNetworkBatchLayer::new();
+        mock.expect_forward()
+            .with(eq(false))
+            .times(1)
+            .returning(|_| Array2::<f64>::zeros((3,3)));
+        assert_eq!(Array2::<f64>::zeros((3,3)), mock.forward(false));
+    }
 }

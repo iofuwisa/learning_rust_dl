@@ -7,6 +7,7 @@ use crate::deep_learning::optimizer::*;
 use crate::deep_learning::common::*;
 use crate::deep_learning::graph_plotter::*;
 
+#[cfg_attr(test, mockall::automock)]
 pub trait NetworkBatchLayer {
     fn forward(&mut self, is_learning: bool) -> Array2<f64>;
     fn forward_skip_loss(&mut self, is_learning: bool) -> Array2<f64> {self.forward(is_learning)}

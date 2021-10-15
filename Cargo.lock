@@ -7,6 +7,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aae1277d39aeec15cb388266ecc24b11c80469deae6067e17a1a7aa9e5c1f234"
 
 [[package]]
+name = "aho-corasick"
+version = "0.7.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e37cfd5e7657ada45f742d6e99ca5788580b5c529dc78faf11ece6dc702656f"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -161,6 +170,7 @@ dependencies = [
  "chrono",
  "console_error_panic_hook",
  "mnist",
+ "mockall",
  "ndarray",
  "plotters",
  "rand",
@@ -179,6 +189,12 @@ dependencies = [
  "adler32",
  "byteorder",
 ]
+
+[[package]]
+name = "difference"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "524cbf6897b527295dff137cec09ecf3a05f4fddffd7dfcd1585403449e74198"
 
 [[package]]
 name = "dirs-next"
@@ -202,6 +218,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "downcast"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4bb454f0228b18c7f4c3b0ebbee346ed9c52e7443b0999cd543ff3571205701d"
+
+[[package]]
 name = "dwrote"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -221,6 +243,15 @@ checksum = "658f19728920138342f68408b7cf7644d90d4784353d8ebc32e7e8663dbe45fa"
 dependencies = [
  "cmake",
  "pkg-config",
+]
+
+[[package]]
+name = "float-cmp"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1267f4ac4f343772758f7b1bdcbe767c218bbab93bb432acbf5162bbf85a6c4"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
@@ -268,6 +299,12 @@ name = "foreign-types-shared"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
+
+[[package]]
+name = "fragile"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69a039c3498dc930fe810151a34ba0c1c70b02b8625035592e74432f678591f2"
 
 [[package]]
 name = "freetype"
@@ -382,6 +419,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "memchr"
+version = "2.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "308cc39be01b73d0d18f82a0e7b2a3df85245f84af96fdddc5d202d27e47b86a"
+
+[[package]]
 name = "memory_units"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -406,6 +449,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "mockall"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ab571328afa78ae322493cacca3efac6a0f2e0a67305b4df31fd439ef129ac0"
+dependencies = [
+ "cfg-if 1.0.0",
+ "downcast",
+ "fragile",
+ "lazy_static",
+ "mockall_derive",
+ "predicates",
+ "predicates-tree",
+]
+
+[[package]]
+name = "mockall_derive"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7e25b214433f669161f414959594216d8e6ba83b6679d3db96899c0b4639033"
+dependencies = [
+ "cfg-if 1.0.0",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "ndarray"
 version = "0.15.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -417,6 +487,12 @@ dependencies = [
  "num-traits",
  "rawpointer 0.2.1",
 ]
+
+[[package]]
+name = "normalize-line-endings"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61807f77802ff30975e01f4f071c8ba10c022052f98b3294119f3e615d13e5be"
 
 [[package]]
 name = "num"
@@ -578,6 +654,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac74c624d6b2d21f425f752262f42188365d7b8ff1aff74c82e45136510a4857"
 
 [[package]]
+name = "predicates"
+version = "1.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f49cfaf7fdaa3bfacc6fa3e7054e65148878354a5cfddcf661df4c851f8021df"
+dependencies = [
+ "difference",
+ "float-cmp",
+ "normalize-line-endings",
+ "predicates-core",
+ "regex",
+]
+
+[[package]]
+name = "predicates-core"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57e35a3326b75e49aa85f5dc6ec15b41108cf5aee58eabb1f274dd18b73c2451"
+
+[[package]]
+name = "predicates-tree"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "338c7be2905b732ae3984a2f40032b5e94fd8f52505b186c7d4d68d193445df7"
+dependencies = [
+ "predicates-core",
+ "termtree",
+]
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -667,6 +772,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "regex"
+version = "1.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d07a8629359eb56f1e2fb1652bb04212c072a87ba68546a04065d525673ac461"
+dependencies = [
+ "aho-corasick",
+ "memchr",
+ "regex-syntax",
+]
+
+[[package]]
+name = "regex-syntax"
+version = "0.6.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
+
+[[package]]
 name = "rulinalg"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -749,6 +871,12 @@ dependencies = [
  "quote",
  "unicode-xid",
 ]
+
+[[package]]
+name = "termtree"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78fbf2dd23e79c28ccfa2472d3e6b3b189866ffef1aeb91f17c2d968b6586378"
 
 [[package]]
 name = "time"
