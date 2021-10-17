@@ -4,9 +4,7 @@ use ndarray::prelude::{
 };
 
 use crate::deep_learning::common::*;
-use crate::deep_learning::affine_layer::*;
-use crate::deep_learning::activation_layers::*;
-use crate::deep_learning::softmax_with_loss::*;
+use crate::deep_learning::layer::*;
 use crate::deep_learning::graph_plotter::*;
 
 pub struct LearningParameter {
@@ -22,12 +20,12 @@ pub struct LearningResource {
 }
 
 pub struct NeuralNetwork {
-    last_layer: Box::<dyn NetworkBatchLayer>,
+    last_layer: Box::<dyn NetworkLayer>,
 }
 
 impl NeuralNetwork {
     pub fn new<TL>(last_layer: TL) -> Self
-    where TL: NetworkBatchLayer + 'static
+    where TL: NetworkLayer + 'static
     {
         NeuralNetwork {
             last_layer: Box::new(last_layer),
@@ -44,7 +42,7 @@ impl NeuralNetwork {
     pub fn forward(&mut self, is_learning: bool) -> Array2<f64> {
         self.last_layer.forward(is_learning).to_owned()
     }
-    pub fn get_layers(self) -> Box::<dyn NetworkBatchLayer>{
+    pub fn get_layers(self) -> Box::<dyn NetworkLayer>{
         return self.last_layer;
     }
 
@@ -185,8 +183,8 @@ mod test_neuaral_network {
     fn test_set_input() {
         let batch_size = 2;
 
-        let layers = NetworkBatchValueLayer::new(Array2::<f64>::zeros((batch_size, 3)));
-        let layers = AffineLayer::new_random(
+        let layers = DirectValue::new(Array2::<f64>::zeros((batch_size, 3)));
+        let layers = Affine::new_random(
             layers,
             28*28,
             200,
@@ -208,8 +206,8 @@ mod test_neuaral_network {
     fn test_set_lbl() {
         let batch_size = 2;
 
-        let layers = NetworkBatchValueLayer::new(Array2::<f64>::zeros((batch_size, 3)));
-        let layers = AffineLayer::new_random(
+        let layers = DirectValue::new(Array2::<f64>::zeros((batch_size, 3)));
+        let layers = Affine::new_random(
             layers,
             28*28,
             200,

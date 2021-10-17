@@ -1,19 +1,11 @@
 extern crate mnist;
 extern crate rulinalg;
 
-use mnist::{Mnist, NormalizedMnist, MnistBuilder};
+use mnist::{Mnist, MnistBuilder};
 use ndarray::prelude::{
-    ArrayBase,
     Array,
-    Array1,
     Array2,
-    Axis,
-    arr1,
-    arr2,
-    s
 };
-use crate::deep_learning::common::*;
-use crate::deep_learning::network_learning::*;
 
 const IMG_ROWS: usize = 28;
 const IMG_COLS: usize = 28;
@@ -139,37 +131,48 @@ impl MnistImages {
     pub fn get_tst_img(&self) -> &Array2<f64> { &(self.tst_img) }
 }
 
-#[test]
-#[ignore]
-fn print_img_and_lbl() {
-    // Load MNIST
-    let TRN_IMG_SIZE: usize = 5000;
-    let VAL_IMG_SIZE: usize = 1;
-    let TST_IMG_SIZE: usize = 2000;
+#[cfg(test)]
+mod test{
+    use super::*;
 
-    let mnist = MnistImages::new(TRN_IMG_SIZE, VAL_IMG_SIZE, TST_IMG_SIZE);
-    let trn_img = mnist.get_trn_img();
-    let trn_lbl = mnist.get_trn_lbl();
-    let trn_lbl_one_hot = mnist.get_trn_lbl_one_hot();
-    let tst_img = mnist.get_tst_img();
-    let tst_lbl = mnist.get_tst_lbl();
-    let tst_lbl_one_hot = mnist.get_tst_lbl_one_hot();
+    use ndarray::prelude::{
+        Axis,
+    };
 
-    let trn_indexes = random_choice(10, TRN_IMG_SIZE);
-    for i in &trn_indexes {
-        println!("trn_index: {}", i);
-        println!("digit: {}", trn_lbl[*i]);
-        println!("one_hot: {:?}", trn_lbl_one_hot.index_axis(Axis(0), *i).to_owned());
-        print_img(&trn_img.index_axis(Axis(0), *i).to_owned());
-        println!("");
-    }
-    
-    let tst_indexes = random_choice(10, TST_IMG_SIZE);
-    for i in &tst_indexes {
-        println!("tst_index: {}", i);
-        println!("digit: {}", tst_lbl[*i]);
-        println!("one_hot: {:?}", tst_lbl_one_hot.index_axis(Axis(0), *i).to_owned());
-        print_img(&tst_img.index_axis(Axis(0), *i).to_owned());
-        println!("");
+    use crate::deep_learning::common::*;
+
+    #[test]
+    #[ignore]
+    fn print_img_and_lbl() {
+        // Load MNIST
+        let TRN_IMG_SIZE: usize = 5000;
+        let VAL_IMG_SIZE: usize = 1;
+        let TST_IMG_SIZE: usize = 2000;
+
+        let mnist = MnistImages::new(TRN_IMG_SIZE, VAL_IMG_SIZE, TST_IMG_SIZE);
+        let trn_img = mnist.get_trn_img();
+        let trn_lbl = mnist.get_trn_lbl();
+        let trn_lbl_one_hot = mnist.get_trn_lbl_one_hot();
+        let tst_img = mnist.get_tst_img();
+        let tst_lbl = mnist.get_tst_lbl();
+        let tst_lbl_one_hot = mnist.get_tst_lbl_one_hot();
+
+        let trn_indexes = random_choice(10, TRN_IMG_SIZE);
+        for i in &trn_indexes {
+            println!("trn_index: {}", i);
+            println!("digit: {}", trn_lbl[*i]);
+            println!("one_hot: {:?}", trn_lbl_one_hot.index_axis(Axis(0), *i).to_owned());
+            print_img(&trn_img.index_axis(Axis(0), *i).to_owned());
+            println!("");
+        }
+        
+        let tst_indexes = random_choice(10, TST_IMG_SIZE);
+        for i in &tst_indexes {
+            println!("tst_index: {}", i);
+            println!("digit: {}", tst_lbl[*i]);
+            println!("one_hot: {:?}", tst_lbl_one_hot.index_axis(Axis(0), *i).to_owned());
+            print_img(&tst_img.index_axis(Axis(0), *i).to_owned());
+            println!("");
+        }
     }
 }

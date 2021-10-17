@@ -6,17 +6,15 @@ use ndarray::{
     Axis,
 };
 
-use super::super::super::deep_learning::affine_layer::*;
+use super::super::super::deep_learning::layer::*;
 use super::super::super::deep_learning::optimizer::*;
 use super::super::super::deep_learning::common::*;
-use super::super::super::deep_learning::statistics::*;
-
 
 pub struct Convolution {
-    x: Box<dyn NetworkBatchLayer>,
+    x: Box<dyn NetworkLayer>,
     y: Option<Array2<f64>>,
-    filter: Box<dyn NetworkBatchLayer>,
-    bias: Box<dyn NetworkBatchLayer>,
+    filter: Box<dyn NetworkLayer>,
+    bias: Box<dyn NetworkLayer>,
     x_shape: (usize, usize, usize, usize),
     y_shape: (usize, usize, usize, usize),
     filter_shape: (usize, usize, usize, usize),
@@ -35,9 +33,9 @@ impl Convolution {
         stride: usize,
         pad: usize
     ) -> Self
-        where   TX : NetworkBatchLayer + 'static,
-                TW : NetworkBatchLayer + 'static,
-                TB : NetworkBatchLayer + 'static,
+        where   TX : NetworkLayer + 'static,
+                TW : NetworkLayer + 'static,
+                TB : NetworkLayer + 'static,
     {
         Self {
             x: Box::new(x),
@@ -65,7 +63,7 @@ impl Convolution {
         stride: usize,
         pad: usize
     ) -> Convolution
-    where   TX : NetworkBatchLayer + 'static,
+    where   TX : NetworkLayer + 'static,
             TFO: Optimizer + 'static,
             TBO: Optimizer + 'static
     {
@@ -75,14 +73,14 @@ impl Convolution {
         let filter_num = stride_count_h * stride_count_w;
 
         // Generate initialize filter and biasn by normal distibution
-        let filter = NetworkBatchAffineValueLayer::new(
+        let filter = AffineDirectValue::new(
             Array2::from_shape_vec(
                 (filter_num, channel_size * filter_h * filter_w),
                 norm_random_vec(filter_num * channel_size * filter_h * filter_w)
             ).ok().unwrap(),
             optimizer_f    
         );
-        let bias = NetworkBatchAffineValueLayer::new(
+        let bias = AffineDirectValue::new(
             Array2::from_shape_vec(
                 (filter_num, 1),
                 norm_random_vec(filter_num)
@@ -106,7 +104,7 @@ impl Convolution {
     }
 }
 
-impl NetworkBatchLayer for Convolution {
+impl NetworkLayer for Convolution {
     fn forward(&mut self, is_learning: bool) -> Array2<f64> {
         if self.y.is_none() {
             let x_2d = self.x.forward(is_learning);
@@ -189,7 +187,13 @@ impl NetworkBatchLayer for Convolution {
     }
 }
 
-fn im2col(input_data: &Array4<f64>, filter_h: usize, filter_w: usize, stride: usize, pad: usize) -> Array2<f64>{
+fn im2col(
+    input_data: &Array4<f64>,
+    filter_h: usize,
+    filter_w: usize,
+    stride: usize,
+    pad: usize
+) -> Array2<f64>{
     let img = pad_array4(input_data, [(0,0), (0,0), (pad, pad), (pad, pad)]);
 
     let (batch_size, channel_size, input_h, input_w) = input_data.dim();
@@ -304,9 +308,11 @@ mod test {
         arr2,
     };
 
+    use crate::deep_learning::statistics::*;
+
     #[test]
     fn test_convolution_new_random() {
-        let x = NetworkBatchValueLayer::new(arr2(&
+        let x = DirectValue::new(arr2(&
             [
                 [1f64, 2f64, 3f64],
             ]
@@ -349,7 +355,7 @@ mod test {
     #[test]
     fn test_convolution_forward() {
         // B:2, C:2 H:7 W:7
-        let value = NetworkBatchValueLayer::new(
+        let value = DirectValue::new(
             Array::from_shape_vec(
                 (2,98),
                 vec![
@@ -388,7 +394,7 @@ mod test {
             ).ok().unwrap()
         );
         // FN:9, C:2 FH:3 FW:3
-        let filter = NetworkBatchValueLayer::new(
+        let filter = DirectValue::new(
             Array::from_shape_vec(
                 (9,18),
                 vec![
@@ -406,7 +412,7 @@ mod test {
             ).ok().unwrap()
         );
         // FN:9
-        let bias = NetworkBatchValueLayer::new(
+        let bias = DirectValue::new(
             Array::from_shape_vec(
                 (9,1),
                 vec![
@@ -468,7 +474,7 @@ mod test {
         
         //F
         // FN:2, C:2 FH:3 FW:3
-        let mut filter = MockNetworkBatchLayer::new();
+        let mut filter = MockNetworkLayer::new();
         filter.expect_forward()
             .returning(|_| -> Array2<f64> {
                 Array::from_shape_vec(
@@ -505,7 +511,7 @@ mod test {
         );
         let dx_expect = dx_expect_4d.to_shared().reshape((2, 98)).to_owned();
         println!("dx_expect: {:?}", dx_expect);
-        let mut x = MockNetworkBatchLayer::new();
+        let mut x = MockNetworkLayer::new();
         x.expect_forward()
             .returning(|_| -> Array2<f64> {
                 // B:2, C:2 H:7 W:7
@@ -518,7 +524,7 @@ mod test {
             .returning(|_| {})
         ;
         
-        let mut bias = MockNetworkBatchLayer::new();
+        let mut bias = MockNetworkLayer::new();
         bias.expect_forward()
             .returning(|_| -> Array2<f64> {
                 // FN:2
@@ -566,7 +572,7 @@ mod test {
         ).ok().unwrap();
 
         // X
-        let mut x = MockNetworkBatchLayer::new();
+        let mut x = MockNetworkLayer::new();
         x.expect_forward()
             .returning(|_| -> Array2<f64> {
                 // B:2, C:2 H:7 W:7
@@ -641,7 +647,7 @@ mod test {
         // F
         let df_expect = transed_dout.dot(&col_x);
         // println!("df_expect: {:?}", df_expect);
-        let mut filter = MockNetworkBatchLayer::new();
+        let mut filter = MockNetworkLayer::new();
         filter.expect_forward()
             .times(1)
             .returning(|_| -> Array2<f64> {
@@ -665,7 +671,7 @@ mod test {
         ;
         
         // B
-        let mut bias = MockNetworkBatchLayer::new();
+        let mut bias = MockNetworkLayer::new();
         bias.expect_forward()
             .returning(|_| -> Array2<f64> {
                 // FN:2
@@ -701,7 +707,7 @@ mod test {
             ]
         ).ok().unwrap();
 
-        let mut x = MockNetworkBatchLayer::new();
+        let mut x = MockNetworkLayer::new();
         x.expect_forward()
             .returning(|_| -> Array2<f64> {
                 // B:2, C:2 H:7 W:7
@@ -712,7 +718,7 @@ mod test {
             .returning(|_| {})
         ;
         
-        let mut filter = MockNetworkBatchLayer::new();
+        let mut filter = MockNetworkLayer::new();
         filter.expect_forward()
             .returning(|_| -> Array2<f64> {
                 // FN:2, C:2 FH:3 FW:3
@@ -740,7 +746,7 @@ mod test {
             ]
         ).ok().unwrap();
         // println!("db_expect: {:?}", db_expect);
-        let mut bias = MockNetworkBatchLayer::new();
+        let mut bias = MockNetworkLayer::new();
         bias.expect_forward()
             .returning(|_| -> Array2<f64> {
                 // FN:2
@@ -1167,9 +1173,9 @@ mod test {
         
         let img = pad_array4(&x_4d, [(0,0), (0,0), (pad, pad), (pad, pad)]);
 
-        let (x_b, x_c, x_h, x_w) = (x_shape);
-        let (y_b, y_c, y_h, y_w) = (y_shape);
-        let (filter_b, filter_c, filter_h, filter_w) = (filter_shape);
+        let (x_b, x_c, x_h, x_w) = x_shape;
+        let (y_b, y_c, y_h, y_w) = y_shape;
+        let (filter_b, filter_c, filter_h, filter_w) = filter_shape;
 
         let stride_count_h = (x_h + 2 * pad - filter_h) / stride + 1;
         let stride_count_w = (x_w + 2 * pad - filter_w) / stride + 1;

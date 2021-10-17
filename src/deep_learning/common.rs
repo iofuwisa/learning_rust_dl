@@ -3,9 +3,11 @@ use ndarray::prelude::{
     Array,
     Array1,
     Array2,
-    arr1,
 };
-use rand::{thread_rng, Rng};
+use rand::{
+    thread_rng,
+    Rng,
+};
 
 // Numerical differentiation
 pub fn numeric_diff(func: Box<dyn Fn(f64) -> f64>, x: f64) -> f64 {
@@ -123,8 +125,12 @@ pub fn norm_random_vec(num: usize) -> Vec<f64> {
 
 
 #[cfg(test)]
-mod NeuralNetwork_test {
+mod test {
     use super::*;
+
+    use ndarray::{
+        arr1,
+    };
 
     #[test]
     fn test_round_digit() {

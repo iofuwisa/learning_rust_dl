@@ -3,7 +3,7 @@ use ndarray::prelude::{
     Axis,
 };
 
-use crate::deep_learning::affine_layer::*;
+use crate::deep_learning::layer::*;
 use crate::deep_learning::optimizer::*;
 use crate::deep_learning::common::*;
 
@@ -21,14 +21,14 @@ impl NetworkBatchNormValueLayer {
             optimizer: Box::new(optimizer),
         }
     }
-    pub fn new_from_len<TO>(row_len: usize, col_len: usize, optimizer: TO) -> NetworkBatchAffineValueLayer
+    pub fn new_from_len<TO>(row_len: usize, col_len: usize, optimizer: TO) -> AffineDirectValue
         where TO: Optimizer + 'static
     {
-        return NetworkBatchAffineValueLayer::new(Array2::<f64>::zeros((row_len, col_len)), optimizer);
+        return AffineDirectValue::new(Array2::<f64>::zeros((row_len, col_len)), optimizer);
     }
 }
-impl NetworkBatchLayer for NetworkBatchNormValueLayer {
-    fn forward(&mut self, is_learning: bool) -> Array2<f64> {
+impl NetworkLayer for NetworkBatchNormValueLayer {
+    fn forward(&mut self, _is_learning: bool) -> Array2<f64> {
         self.value.clone()
     }
     fn backward(&mut self, dout: Array2<f64>) {
@@ -60,19 +60,19 @@ impl NetworkBatchLayer for NetworkBatchNormValueLayer {
 
 // Batch normalization
 pub struct BatchNorm {
-    x: Box<dyn NetworkBatchLayer>,
+    x: Box<dyn NetworkLayer>,
     y: Option<Array2<f64>>, 
-    w: Box<dyn NetworkBatchLayer>,
-    b: Box<dyn NetworkBatchLayer>,
+    w: Box<dyn NetworkLayer>,
+    b: Box<dyn NetworkLayer>,
     normalized: Option<Array2<f64>>,
     distribute: Option<Array2<f64>>,
     average: Option<Array2<f64>>,
 }
 impl BatchNorm {
     pub fn new<TX, TW, TB>(x: TX, w: TW, b: TB) -> BatchNorm
-        where   TX: NetworkBatchLayer + 'static,
-                TW: NetworkBatchLayer + 'static,
-                TB: NetworkBatchLayer + 'static,
+        where   TX: NetworkLayer + 'static,
+                TW: NetworkLayer + 'static,
+                TB: NetworkLayer + 'static,
     {
         BatchNorm {
             x: Box::new(x),
@@ -84,9 +84,9 @@ impl BatchNorm {
             average: None,
         }
     }
-    pub fn get_x(&self) -> &Box<dyn NetworkBatchLayer> {&self.x}
+    pub fn get_x(&self) -> &Box<dyn NetworkLayer> {&self.x}
 }
-impl NetworkBatchLayer for BatchNorm {
+impl NetworkLayer for BatchNorm {
     fn forward(&mut self, is_learning: bool) -> Array2<f64> {
         if self.y.is_none() {
             let x = self.x.forward(is_learning);
@@ -269,19 +269,14 @@ mod batch_norm_test {
     use super::*;
 
     use ndarray::prelude::{
-        Array1,
         arr2,
     };
-    use rand::{thread_rng, Rng};
-
-    use crate::deep_learning::mnist::*;
-    use crate::deep_learning::neural_network::*;
-    use crate::deep_learning::graph_plotter::*;
+    use rand::{Rng};
 
     #[test]
     fn test_forward() {
         let mut batch_norm = BatchNorm::new(
-            NetworkBatchAffineValueLayer::new_from_len(100, 100, Sgd::new(0.01)),
+            AffineDirectValue::new_from_len(100, 100, Sgd::new(0.01)),
             NetworkBatchNormValueLayer::new(
                 Array2::<f64>::ones((100, 100)),
                 Sgd::new(0.01)

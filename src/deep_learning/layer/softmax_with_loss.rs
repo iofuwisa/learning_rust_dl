@@ -4,19 +4,19 @@ use ndarray::prelude::{
 };
 use ndarray::Axis;
 
-use crate::deep_learning::affine_layer::*;
+use crate::deep_learning::layer::*;
 use crate::deep_learning::common::*;
 
 
 // Softmax with loss
 pub struct SoftmaxWithLoss {
-    x: Box<dyn NetworkBatchLayer>,
+    x: Box<dyn NetworkLayer>,
     t: Array2<f64>,
     z: Option<Array2<f64>>, 
 }
 impl SoftmaxWithLoss {
     pub fn new<TX>(x: TX, t: Array2<f64>) -> SoftmaxWithLoss
-    where TX: NetworkBatchLayer + 'static
+    where TX: NetworkLayer + 'static
     {
         SoftmaxWithLoss {
             x: Box::new(x),
@@ -24,10 +24,10 @@ impl SoftmaxWithLoss {
             z: None,
         }
     }
-    pub fn get_x(&self) -> &Box<dyn NetworkBatchLayer> {&self.x}
+    pub fn get_x(&self) -> &Box<dyn NetworkLayer> {&self.x}
     pub fn get_t(&self) -> &Array2<f64> {&self.t}
 }
-impl NetworkBatchLayer for SoftmaxWithLoss {
+impl NetworkLayer for SoftmaxWithLoss {
     fn forward(&mut self, is_learning: bool) -> Array2<f64> {
         if self.z.is_none() {
             
@@ -231,7 +231,7 @@ mod test_softmax_with_loss_mod {
             ]
         );
         // Use NetworkBatchAffineValueLayer to check side effects
-        let x = NetworkBatchAffineValueLayer::new(
+        let x = AffineDirectValue::new(
             arr2_x.clone(),
             Sgd::new(0.01)
         );

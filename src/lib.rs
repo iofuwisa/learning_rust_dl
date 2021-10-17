@@ -1,6 +1,7 @@
-mod utils;
 pub mod deep_learning;
-pub mod cnn;
+pub mod mnist_images;
+
+mod utils;
 
 use wasm_bindgen::prelude::*;
 

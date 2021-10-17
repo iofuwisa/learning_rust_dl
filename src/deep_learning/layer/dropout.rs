@@ -3,21 +3,20 @@ use ndarray::prelude::{
 };
 use rand::Rng;
 
-use crate::deep_learning::affine_layer::*;
-
+use crate::deep_learning::layer::*;
 
 // Dropout
-pub struct DropoutLayer {
-    x: Box<dyn NetworkBatchLayer>,
+pub struct Dropout {
+    x: Box<dyn NetworkLayer>,
     y: Option<Array2<f64>>,
     mask: Option<Array2<f64>>,
     dropout_rate: f64,
     is_learning: bool,
 }
-impl DropoutLayer {
-    pub fn new<TX>(x: TX, dropout_rate: f64) -> DropoutLayer
-    where TX: NetworkBatchLayer + 'static {
-        DropoutLayer {
+impl Dropout {
+    pub fn new<TX>(x: TX, dropout_rate: f64) -> Dropout
+    where TX: NetworkLayer + 'static {
+        Dropout {
             x: Box::new(x),
             y: None,
             mask: None,
@@ -25,13 +24,14 @@ impl DropoutLayer {
             is_learning: false,
         }
     }
-    pub fn get_x(&self) -> &Box<dyn NetworkBatchLayer> {&self.x}
+    pub fn get_x(&self) -> &Box<dyn NetworkLayer> {&self.x}
 }
-impl NetworkBatchLayer for DropoutLayer {
+impl NetworkLayer for Dropout {
     fn forward(&mut self, is_learning: bool) -> Array2<f64> {
         if self.y.is_none() || self.is_learning != is_learning {
             self.is_learning = is_learning;
             let x = self.x.forward(is_learning);
+            // Active while learning
             if is_learning {
                 let mut rng = rand::thread_rng();
                 let mask = Array2::from_shape_fn(x.dim(),

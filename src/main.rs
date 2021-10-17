@@ -1,25 +1,9 @@
-extern crate deep_learning;
-
-// use deep_learning::logical_operators::*;
-// use deep_learning::activation_functions::*;
-// use deep_learning::loss_functions::*;
-// use deep_learning::network::*;
-use deep_learning::deep_learning::mnist::*;
-// use deep_learning::deep_learning::common::*;
-// use deep_learning::deep_learning::graph_plotter::*;
-// use deep_learning::deep_learning::network_learning::*;
-use deep_learning::deep_learning::softmax_with_loss::*;
-use deep_learning::deep_learning::affine_layer::*;
-use deep_learning::deep_learning::activation_layers::*;
+use deep_learning::mnist_images::*;
 use deep_learning::deep_learning::neural_network::*;
-// use crate::deep_learning::neural_network_learning::*;
+use deep_learning::deep_learning::layer::*;
 use deep_learning::deep_learning::optimizer::*;
-use deep_learning::deep_learning::batch_norm::*;
-use deep_learning::deep_learning::dropout_layer::*;
 
-use deep_learning::cnn::*;
-
-use ndarray::prelude::{
+use ndarray::{
     Array2,
 };
 
@@ -60,8 +44,8 @@ fn switch_main() {
 
     // Create NN from layers stack
     // Include loss layer
-    let layers = NetworkBatchValueLayer::new(Array2::<f64>::zeros((MINIBATCH_SIZE, 28*28)));
-    let layers = AffineLayer::new_random_with_name(
+    let layers = DirectValue::new(Array2::<f64>::zeros((MINIBATCH_SIZE, 28*28)));
+    let layers = Affine::new_random_with_name(
         layers,
         28*28,
         200,
@@ -88,8 +72,8 @@ fn switch_main() {
             Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
         )
     );
-    let layers = ReluLayer::new(layers);
-    let layers = AffineLayer::new_random_with_name(
+    let layers = Relu::new(layers);
+    let layers = Affine::new_random_with_name(
         layers,
         200,
         10,
@@ -165,10 +149,10 @@ fn switch_overfitting() {
 
     // Create NN from layers stack
     // Include loss layer
-    let layers = NetworkBatchValueLayer::new(Array2::<f64>::zeros((MINIBATCH_SIZE, 28*28)));
+    let layers = DirectValue::new(Array2::<f64>::zeros((MINIBATCH_SIZE, 28*28)));
 
     // Layer1
-    let layers = AffineLayer::new_random_with_name(
+    let layers = Affine::new_random_with_name(
         layers,
         28*28,
         100,
@@ -187,11 +171,11 @@ fn switch_overfitting() {
             Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
         )
     );
-    let layers = DropoutLayer::new(layers, DROUPOUT_RATE);
-    let layers = ReluLayer::new(layers);
+    let layers = Dropout::new(layers, DROUPOUT_RATE);
+    let layers = Relu::new(layers);
 
     // Layer2
-    let layers = AffineLayer::new_random_with_name(
+    let layers = Affine::new_random_with_name(
         layers,
         100,
         100,
@@ -210,11 +194,11 @@ fn switch_overfitting() {
             Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
         )
     );
-    let layers = ReluLayer::new(layers);
-    let layers = DropoutLayer::new(layers, DROUPOUT_RATE);
+    let layers = Relu::new(layers);
+    let layers = Dropout::new(layers, DROUPOUT_RATE);
 
     // Layer3
-    let layers = AffineLayer::new_random_with_name(
+    let layers = Affine::new_random_with_name(
         layers,
         100,
         100,
@@ -233,11 +217,11 @@ fn switch_overfitting() {
             Adam::new(ADAM_LEARNING_RATE/100f64, ADAM_FLICTION_M, ADAM_FLICTION_V),
         )
     );
-    let layers = ReluLayer::new(layers);
-    let layers = DropoutLayer::new(layers, DROUPOUT_RATE);
+    let layers = Relu::new(layers);
+    let layers = Dropout::new(layers, DROUPOUT_RATE);
 
     // Layer4
-    let layers = AffineLayer::new_random_with_name(
+    let layers = Affine::new_random_with_name(
         layers,
         100,
         100,
@@ -256,8 +240,8 @@ fn switch_overfitting() {
             Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
         )
     );
-    let layers = ReluLayer::new(layers);
-    let layers = DropoutLayer::new(layers, DROUPOUT_RATE);
+    let layers = Relu::new(layers);
+    let layers = Dropout::new(layers, DROUPOUT_RATE);
 
     // // Layer5
     // let layers = AffineLayer::new_random_with_name(
@@ -304,7 +288,7 @@ fn switch_overfitting() {
     // let layers = ReluLayer::new(layers);
 
     // Layer7
-    let layers = AffineLayer::new_random_with_name(
+    let layers = Affine::new_random_with_name(
         layers,
         100,
         10,
@@ -312,8 +296,8 @@ fn switch_overfitting() {
         Adam::new(ADAM_LEARNING_RATE/100f64, ADAM_FLICTION_M, ADAM_FLICTION_V),
         "layer7".to_string(),
     );
-    let layers = ReluLayer::new(layers);
-    let layers = DropoutLayer::new(layers, DROUPOUT_RATE);
+    let layers = Relu::new(layers);
+    let layers = Dropout::new(layers, DROUPOUT_RATE);
 
     let layers = SoftmaxWithLoss::new(layers, Array2::<f64>::zeros((MINIBATCH_SIZE, 10)));
 
