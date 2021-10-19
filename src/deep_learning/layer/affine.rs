@@ -140,7 +140,7 @@ impl NetworkLayer for Affine {
             self.x.weight_sum() + 
             self.w.weight_sum() + 
             self.b.weight_sum();
-}
+    }
 }
 
 

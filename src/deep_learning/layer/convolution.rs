@@ -187,7 +187,7 @@ impl NetworkLayer for Convolution {
     }
 }
 
-fn im2col(
+pub fn im2col(
     input_data: &Array4<f64>,
     filter_h: usize,
     filter_w: usize,

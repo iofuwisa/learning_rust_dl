@@ -27,3 +27,6 @@ pub use dropout::*;
 
 mod convolution;
 pub use convolution::*;
+
+mod pooling;
+pub use pooling::*;

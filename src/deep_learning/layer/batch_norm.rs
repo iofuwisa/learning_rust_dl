@@ -118,26 +118,33 @@ impl NetworkLayer for BatchNorm {
         let distribute = self.distribute.as_ref().unwrap();
         let average = self.average.as_ref().unwrap();
 
-        // d15 +
-        let d15 = dout.clone();
-        
-        // d14 Broadcast
-        let d14 = backword_broadcast(&d15);
+        let dw = backword_broadcast(&(normalized * &dout));
 
-        // 13 db
-        self.b.backward(d14.clone());
+        let db = dout.sum_axis(Axis(0)).to_shared().reshape((1, w.shape()[1])).to_owned();
+
+
+        // // d15 +
+        // let d15 = dout.clone();
+        
+        // // d14 Broadcast
+        // let d14 = backword_broadcast(&d15);
+
+        // // 13 db
+        // self.b.backward(d14.clone());
+        
+        // // d12b *
+        // let d12b = normalized * &dout;
+
+        // // d11 Broadcast
+        // let d11 = backword_broadcast(&d12b);
+
+        // // 10
+        // self.w.backward(d11.clone());
+
+
 
         // d12a *
         let d12a = w * &dout;
-
-        // d12b *
-        let d12b = normalized * &dout;
-
-        // d11 Broadcast
-        let d11 = backword_broadcast(&d12b);
-
-        // 10
-        self.w.backward(d11.clone());
 
         // d9a *
         let d9a =  &d12a /  sqrt_arr2(&(distribute + 10f64.powi(-6)));
@@ -252,20 +259,13 @@ fn backword_average(x: &Array2<f64>, row_len: usize) -> Array2<f64> {
     return y;
 }
 
-fn backword_broadcast(x: &Array2<f64>) -> Array2<f64> {
-    let mut y = Array2::<f64>::zeros((1, x.shape()[1]));
-    for col_i in 0..x.shape()[1] {
-        let mut sum = 0f64;
-        for row_i in 0..x.shape()[0] {
-            sum += x[(row_i, col_i)];
-        }
-        y[(0, col_i)] = sum;
-    }
-    return y;
+fn backword_broadcast(dout: &Array2<f64>) -> Array2<f64> {
+    let d = dout.sum_axis(Axis(0)).to_shared().reshape((1, dout.shape()[1])).to_owned();
+    return d;
 }
 
 #[cfg(test)]
-mod batch_norm_test {
+mod test {
     use super::*;
 
     use ndarray::prelude::{
@@ -274,7 +274,7 @@ mod batch_norm_test {
     use rand::{Rng};
 
     #[test]
-    fn test_forward() {
+    fn test_batch_norm_forward() {
         let mut batch_norm = BatchNorm::new(
             AffineDirectValue::new_from_len(100, 100, Sgd::new(0.01)),
             NetworkBatchNormValueLayer::new(
@@ -310,7 +310,7 @@ mod batch_norm_test {
     }
 
     #[test]
-    fn test_calc_average_and_broadcast() {
+    fn test_batch_norm_calc_average_and_broadcast() {
         let x = arr2(&
             [
                 [1f64, 2f64, 3f64],
@@ -329,7 +329,7 @@ mod batch_norm_test {
     }
 
     #[test]
-    fn test_calc_distribute_and_broadcast() {
+    fn test_batch_norm_calc_distribute_and_broadcast() {
         let x = arr2(&
             [
                 [1f64, 2f64, 3f64],
@@ -354,7 +354,7 @@ mod batch_norm_test {
     }
 
     #[test]
-    fn test_backword_average() {
+    fn test_batch_norm_backword_average() {
         let x = arr2(&
             [
                 [3f64, 6f64, 9f64]
@@ -375,7 +375,7 @@ mod batch_norm_test {
     }
 
     #[test]
-    fn test_backword_broadcast() {
+    fn test_batch_norm_backword_broadcast() {
         let x = arr2(&
             [
                 [1f64, 2f64, 3f64],
