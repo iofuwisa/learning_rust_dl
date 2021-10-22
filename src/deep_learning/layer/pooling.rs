@@ -1,4 +1,5 @@
 use ndarray::{
+    Array1,
     Array2,
     ArrayView1,
     Axis,
@@ -17,6 +18,7 @@ pub struct Pooling {
     filter_w: usize,
     stride: usize,
     padding: usize,
+    col_max_index: Option<Array1<usize>>,
 }
 impl Pooling {
     pub fn new<TX>(x: TX, x_shape: (usize, usize, usize, usize), filter_h: usize, filter_w: usize, stride: usize, padding: usize)
@@ -31,6 +33,7 @@ impl Pooling {
             filter_w: filter_w,
             stride: stride,
             padding: padding,
+            col_max_index: None,
         }
     }
 }
@@ -48,29 +51,57 @@ impl NetworkLayer for Pooling {
 
             let shaped_col = col.to_shared().reshape((batch_num*channel_num*step_h*step_w , self.filter_h*self.filter_w));
 
-            let col_max = shaped_col.map_axis(
-                Axis(1),
-                |nums: ArrayView1<f64>| -> f64 {
-                    let mut max = nums[0];
-                    for n in nums {
-                        if max < *n {
-                            max = *n;
-                        }
+            let mut col_max = Array1::<f64>::zeros(shaped_col.shape()[0]);
+            let mut col_max_index = Array1::<usize>::zeros(shaped_col.shape()[0]);
+
+            for col_i in 0..shaped_col.shape()[0] {
+                let indexed_col = shaped_col.index_axis(Axis(0), col_i);
+
+                let mut max_index = 0;
+                for row_i in 1..indexed_col.len() {
+                    if indexed_col[max_index] < indexed_col[row_i] {
+                        max_index = row_i;
                     }
-                    return max;
                 }
-            );
+                col_max[col_i] = indexed_col[max_index];
+                col_max_index[col_i] = max_index;
+            }
 
             let mut col_max_3d = col_max.to_shared().reshape((batch_num, step_h*step_w, channel_num)).to_owned();
             col_max_3d.swap_axes(1, 2);
 
             let y = col_max_3d.to_shared().reshape((batch_num, channel_num*step_h*step_w)).to_owned();
             self.y = Some(y);
+            self.col_max_index = Some(col_max_index);
         }
         self.y.clone().unwrap()
     }
     fn backward(&mut self, dout: Array2<f64>) {
-        ;
+        self.forward(true);
+        let col_max_index = self.col_max_index.as_ref().unwrap();
+
+
+        let (batch_num, channel_num, x_h, x_w) = self.x_shape;
+        let step_h = (x_h + 2 * self.padding - self.filter_h) / self.stride + 1;
+        let step_w = (x_w + 2 * self.padding - self.filter_w) / self.stride + 1;
+
+        let mut dout_3d = dout.to_shared().reshape((batch_num, channel_num, step_h*step_w)).to_owned();
+        dout_3d.swap_axes(1, 2);
+
+        let col_d_1d = dout_3d.to_shared().reshape(batch_num*channel_num*step_h*step_w);
+
+        let mut col_dx = Array2::<f64>::zeros((batch_num*channel_num*step_h*step_w, self.filter_h*self.filter_w));
+        for col_i in 0..batch_num*channel_num*step_h*step_w {
+            col_dx[(col_i, col_max_index[col_i])] = col_d_1d[col_i];
+        }
+        let col_dx = col_dx;
+
+        let dx_4d = col2im(&col_dx, self.x_shape, (0, 0, self.filter_h, self.filter_w), self.stride, self.padding);
+
+        let dx = dx_4d.to_shared().reshape((batch_num, channel_num*x_h*x_w)).to_owned();
+
+        // println!("dx: {:?}", dx);
+        self.x.backward(dx);
     }
     fn set_value(&mut self, value: &Array2<f64>) {
         self.x.set_value(value);
@@ -98,6 +129,7 @@ impl NetworkLayer for Pooling {
 mod test {
     use super::*;
 
+    use mockall::predicate::*;
     use ndarray::{
         Array,
         arr2,
@@ -171,6 +203,118 @@ mod test {
         let y = pool.forward(false);
 
         assert_eq!(y, expect);
+    }
+
+    #[test]
+    fn test_pooling_backward() {
+        // B:2, C:2 H:2 W:2
+        let dout = Array::from_shape_vec(
+            (2,8),
+            vec![
+                001f64, 002f64,
+                011f64, 012f64,
+                
+                101f64, 102f64,
+                111f64, 112f64,
+
+                201f64, 202f64,
+                211f64, 212f64,
+                
+                301f64, 302f64,
+                311f64, 312f64,
+            ]
+        ).ok().unwrap();
+
+        // X
+        let mut x = MockNetworkLayer::new();
+        x.expect_forward()
+            .returning(|_| -> Array2<f64> {
+                // B:2, C:2 H:6 W:6
+                Array::from_shape_vec(
+                    (2,72),
+                    vec![
+                        101f64, 002f64, 003f64, 004f64, 005f64, 106f64,
+                        011f64, 012f64, 113f64, 014f64, 015f64, 016f64,
+                        021f64, 022f64, 023f64, 024f64, 025f64, 026f64,
+                        031f64, 132f64, 033f64, 134f64, 035f64, 136f64,
+                        041f64, 042f64, 143f64, 044f64, 045f64, 046f64,
+                        051f64, 052f64, 053f64, 054f64, 055f64, 056f64,
+        
+                        001f64, 002f64, 003f64, 004f64, 005f64, 006f64,
+                        111f64, 012f64, 013f64, 014f64, 015f64, 016f64,
+                        021f64, 022f64, 023f64, 124f64, 025f64, 026f64,
+                        031f64, 132f64, 033f64, 034f64, 035f64, 036f64,
+                        041f64, 042f64, 043f64, 044f64, 145f64, 046f64,
+                        051f64, 052f64, 053f64, 054f64, 055f64, 056f64,
+        
+                        001f64, 002f64, 003f64, 004f64, 005f64, 006f64,
+                        011f64, 012f64, 013f64, 014f64, 015f64, 016f64,
+                        121f64, 022f64, 023f64, 024f64, 125f64, 026f64,
+                        131f64, 032f64, 033f64, 034f64, 135f64, 036f64,
+                        041f64, 042f64, 043f64, 044f64, 045f64, 046f64,
+                        051f64, 052f64, 053f64, 054f64, 055f64, 056f64,
+        
+                        001f64, 102f64, 003f64, 004f64, 005f64, 006f64,
+                        011f64, 012f64, 013f64, 114f64, 015f64, 016f64,
+                        021f64, 022f64, 023f64, 024f64, 025f64, 026f64,
+                        031f64, 032f64, 033f64, 034f64, 035f64, 136f64,
+                        041f64, 142f64, 043f64, 044f64, 045f64, 046f64,
+                        051f64, 052f64, 053f64, 054f64, 055f64, 056f64,
+                    ]
+                ).ok().unwrap()
+            })
+        ;
+
+        // expect X
+        let dx_expect = Array::from_shape_vec(
+            (2,72),
+            vec![
+                000f64, 000f64, 000f64, 000f64, 000f64, 002f64,
+                000f64, 000f64, 001f64, 000f64, 000f64, 000f64,
+                000f64, 000f64, 000f64, 000f64, 000f64, 000f64,
+                000f64, 000f64, 000f64, 000f64, 000f64, 012f64,
+                000f64, 000f64, 011f64, 000f64, 000f64, 000f64,
+                000f64, 000f64, 000f64, 000f64, 000f64, 000f64,
+    
+                000f64, 000f64, 000f64, 000f64, 000f64, 000f64,
+                101f64, 000f64, 000f64, 000f64, 000f64, 000f64,
+                000f64, 000f64, 000f64, 102f64, 000f64, 000f64,
+                000f64, 111f64, 000f64, 000f64, 000f64, 000f64,
+                000f64, 000f64, 000f64, 000f64, 112f64, 000f64,
+                000f64, 000f64, 000f64, 000f64, 000f64, 000f64,
+    
+                000f64, 000f64, 000f64, 000f64, 000f64, 000f64,
+                000f64, 000f64, 000f64, 000f64, 000f64, 000f64,
+                201f64, 000f64, 000f64, 000f64, 202f64, 000f64,
+                211f64, 000f64, 000f64, 000f64, 212f64, 000f64,
+                000f64, 000f64, 000f64, 000f64, 000f64, 000f64,
+                000f64, 000f64, 000f64, 000f64, 000f64, 000f64,
+    
+                000f64, 301f64, 000f64, 000f64, 000f64, 000f64,
+                000f64, 000f64, 000f64, 302f64, 000f64, 000f64,
+                000f64, 000f64, 000f64, 000f64, 000f64, 000f64,
+                000f64, 000f64, 000f64, 000f64, 000f64, 312f64,
+                000f64, 311f64, 000f64, 000f64, 000f64, 000f64,
+                000f64, 000f64, 000f64, 000f64, 000f64, 000f64,
+            ]
+        ).ok().unwrap();
+        // println!("dx_expect: {:?}", dx_expect);
+        x.expect_backward()
+            .times(1)
+            .with(eq(dx_expect))
+            .returning(|_| {})
+        ;
+
+        let mut pooling = Pooling::new(
+            x,
+            (2, 2, 6, 6),
+            3,
+            3,
+            3,
+            0,
+        );
+
+        pooling.backward(dout);
     }
 
     #[test]

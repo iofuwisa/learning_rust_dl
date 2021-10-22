@@ -226,7 +226,7 @@ pub fn im2col(
     return col_2d;
 }
 
-fn col2im(
+pub fn col2im(
     col: &Array2<f64>,
     img_shape: (usize, usize, usize, usize),
     filter_shape: (usize, usize, usize, usize),
@@ -234,7 +234,7 @@ fn col2im(
     pad: usize
 ) -> Array4<f64> {
     let (batch_num, channel_num, img_h, img_w) = img_shape;
-    let (filter_num, _, filter_h, filter_w) = filter_shape;
+    let (_, _, filter_h, filter_w) = filter_shape;
 
     let step_h = (img_h + 2 * pad - filter_h) / stride + 1;
     let step_w = (img_w + 2 * pad - filter_w) / stride + 1;
@@ -250,7 +250,7 @@ fn col2im(
     for f_h in 0..filter_h {
         for f_w in 0..filter_w {
             let mut ranged_img = img.slice_mut(s![.., .., f_h..=img_h-filter_h+f_h;stride, f_w..=img_w-filter_w+f_w;stride]);
-            let mut ranged_col = col_6d.slice_mut(s![.., .., f_h, f_w, .., ..]);
+            let ranged_col = col_6d.slice(s![.., .., f_h, f_w, .., ..]);
             
             let shaped_ranged_col = ranged_col.to_owned().to_shared().reshape((batch_num, channel_num, step_h, step_w));
             ranged_img.assign(&(&ranged_img + shaped_ranged_col));
@@ -510,7 +510,7 @@ mod test {
             0
         );
         let dx_expect = dx_expect_4d.to_shared().reshape((2, 98)).to_owned();
-        println!("dx_expect: {:?}", dx_expect);
+        // println!("dx_expect: {:?}", dx_expect);
         let mut x = MockNetworkLayer::new();
         x.expect_forward()
             .returning(|_| -> Array2<f64> {
