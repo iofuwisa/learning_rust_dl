@@ -40,7 +40,6 @@ impl Pooling {
 impl NetworkLayer for Pooling {
     fn forward(&mut self, is_learning: bool) -> Array2<f64> {
         if self.y.is_none() {
-            
             let x = self.x.forward(is_learning);
             let (batch_num, channel_num, x_h, x_w) = self.x_shape;
             let step_h = (x_h + 2 * self.padding - self.filter_h) / self.stride + 1;
@@ -48,12 +47,10 @@ impl NetworkLayer for Pooling {
 
             let x_4d = x.to_shared().reshape(self.x_shape).to_owned();
             let col = im2col(&x_4d, self.filter_h, self.filter_w, self.stride, self.padding);
-
             let shaped_col = col.to_shared().reshape((batch_num*channel_num*step_h*step_w , self.filter_h*self.filter_w));
 
             let mut col_max = Array1::<f64>::zeros(shaped_col.shape()[0]);
             let mut col_max_index = Array1::<usize>::zeros(shaped_col.shape()[0]);
-
             for col_i in 0..shaped_col.shape()[0] {
                 let indexed_col = shaped_col.index_axis(Axis(0), col_i);
 
@@ -66,7 +63,6 @@ impl NetworkLayer for Pooling {
                 col_max[col_i] = indexed_col[max_index];
                 col_max_index[col_i] = max_index;
             }
-
             let mut col_max_3d = col_max.to_shared().reshape((batch_num, step_h*step_w, channel_num)).to_owned();
             col_max_3d.swap_axes(1, 2);
 
@@ -79,7 +75,6 @@ impl NetworkLayer for Pooling {
     fn backward(&mut self, dout: Array2<f64>) {
         self.forward(true);
         let col_max_index = self.col_max_index.as_ref().unwrap();
-
 
         let (batch_num, channel_num, x_h, x_w) = self.x_shape;
         let step_h = (x_h + 2 * self.padding - self.filter_h) / self.stride + 1;
@@ -96,7 +91,8 @@ impl NetworkLayer for Pooling {
         }
         let col_dx = col_dx;
 
-        let dx_4d = col2im(&col_dx, self.x_shape, (0, 0, self.filter_h, self.filter_w), self.stride, self.padding);
+        let s = (batch_num*channel_num, 1, x_h, x_w);
+        let dx_4d = col2im(&col_dx, s, (0, 0, self.filter_h, self.filter_w), self.stride, self.padding);
 
         let dx = dx_4d.to_shared().reshape((batch_num, channel_num*x_h*x_w)).to_owned();
 
@@ -113,6 +109,7 @@ impl NetworkLayer for Pooling {
     }
     fn clean(&mut self) {
         self.y = None;
+        self.x.clean();
     }
     fn plot(&self){
         self.x.plot();

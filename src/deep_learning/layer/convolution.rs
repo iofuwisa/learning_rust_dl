@@ -56,6 +56,7 @@ impl Convolution {
         optimizer_b: TBO,
         batch_num: usize,
         channel_size: usize,
+        filter_num: usize,
         filter_h: usize,
         filter_w: usize,
         data_h: usize,
@@ -70,7 +71,6 @@ impl Convolution {
         // Calc filter num
         let stride_count_h = (data_h + 2 * pad - filter_h) / stride + 1;
         let stride_count_w = (data_w + 2 * pad - filter_w) / stride + 1;
-        let filter_num = stride_count_h * stride_count_w;
 
         // Generate initialize filter and biasn by normal distibution
         let filter = AffineDirectValue::new(
@@ -96,7 +96,7 @@ impl Convolution {
             filter,
             bias,
             (batch_num, channel_size, data_h, data_w),
-            (batch_num, channel_size, stride_count_h, stride_count_w),
+            (batch_num, filter_num, stride_count_h, stride_count_w),
             (filter_num, channel_size, filter_h, filter_w),
             stride,
             pad
@@ -118,22 +118,23 @@ impl NetworkLayer for Convolution {
             let (filter_num, _channel_num, filter_h, filter_w) = self.filter_shape;
             let col_x_2d = im2col(&x_4d.to_owned(), filter_h, filter_w, self.stride, self.pad);
 
-            let col_y = filter_2d.dot(&col_x_2d.t()) + bias_2d;
-            // println!("col_y: {:?}", col_y);
+            let col_y = col_x_2d.dot(&filter_2d.t()) + bias_2d.t();
 
-            let mut col_y_4d = col_y.to_shared().reshape((self.y_shape.1, self.y_shape.0, self.y_shape.2, self.y_shape.3));
-            col_y_4d.swap_axes(0, 1);
+            let mut col_y_3d = col_y.to_shared().reshape((self.y_shape.0, self.y_shape.2*self.y_shape.3, self.y_shape.1));
+            col_y_3d.swap_axes(1, 2);
 
-            let y = col_y_4d.to_shared().reshape((self.y_shape.0, self.y_shape.1*self.y_shape.2*self.y_shape.3)).to_owned();
+            let y = col_y_3d.to_shared().reshape((self.y_shape.0, self.y_shape.1*self.y_shape.2*self.y_shape.3)).to_owned();
 
             // println!("y: {:?}", y);
 
             self.y = Some(y);
         }
-
         return self.y.clone().unwrap();
     }
     fn backward(&mut self, dout: Array2<f64>) {
+        // println!("conv backward");
+        self.forward(true);
+
         let (batch_num, channel_num, x_h, x_w) = self.x_shape;
         let (batch_num, _, step_h, step_w) = self.y_shape;
         let (filter_num, _, filter_h, filter_w) = self.filter_shape;
@@ -148,17 +149,24 @@ impl NetworkLayer for Convolution {
         // println!("db: {:?}", db);
         self.bias.backward(db);
 
+        let mut dout_3d = dout.to_shared().reshape((batch_num, filter_num, step_h*step_w));
+        dout_3d.swap_axes(1, 2);
+        let dout_2d = dout_3d.to_shared().reshape((batch_num*step_h*step_w, filter_num));
+
         // df = dout CX
         let x_2d = self.x.forward(true);
         let x_4d = x_2d.to_shared().reshape(self.x_shape).to_owned();
         let col_x_2d = im2col(&x_4d.to_owned(), filter_h, filter_w, self.stride, self.pad);
-        let mut df = dout_2d.dot(&col_x_2d);
+        // let mut df = dout_2d.dot(&col_x_2d);
+        println!("col_x_2d_shape: {:?}", col_x_2d.shape());
+        println!("dout_2d_shape: {:?}", dout_2d.shape());
+        let mut df = col_x_2d.t().dot(&dout_2d).t().to_owned();
         // println!("df: {:?}", df);
         self.filter.backward(df);
 
         // dx = col2im((F.t dout).t)
         let filter_2d = self.filter.forward(true);
-        let dx_4d = col2im(&(filter_2d.t().dot(&dout_2d)).t().to_owned(), self.x_shape, self.filter_shape, self.stride, self.pad);
+        let dx_4d = col2im(&(dout_2d.dot(&filter_2d)).to_owned(), self.x_shape, self.filter_shape, self.stride, self.pad);
         let dx = dx_4d.to_shared().reshape((batch_num, channel_num*x_h*x_w)).to_owned();
         // println!("dx: {:?}", dx);
         self.x.backward(dx);
@@ -196,9 +204,9 @@ pub fn im2col(
 ) -> Array2<f64>{
     let img = pad_array4(input_data, [(0,0), (0,0), (pad, pad), (pad, pad)]);
 
-    let (batch_size, channel_size, input_h, input_w) = input_data.dim();
-    let stride_count_h = (input_h + 2 * pad - filter_h) / stride + 1;
-    let stride_count_w = (input_w + 2 * pad - filter_w) / stride + 1;
+    let (batch_size, channel_size, input_h, input_w) = img.dim();
+    let stride_count_h = (input_h - filter_h) / stride + 1;
+    let stride_count_w = (input_w - filter_w) / stride + 1;
     let mut col_6d = Array6::<f64>::zeros((batch_size, channel_size, filter_h, filter_w, stride_count_h, stride_count_w));
 
     for y in 0..filter_h {
@@ -207,7 +215,6 @@ pub fn im2col(
             let mut c = col_6d.slice_mut(s![.., .., y, x, .., ..]);
 
             let i = img.slice(s![.., .., y..=input_h-filter_h+y;stride, x..=input_w-filter_w+x;stride]);
-
             let shaped_i = i.to_owned().into_shared().reshape(c.shape());
 
             c.assign(&shaped_i);
@@ -233,13 +240,21 @@ pub fn col2im(
     stride: usize,
     pad: usize
 ) -> Array4<f64> {
+    // println!("col_shape: {:?}", col.shape());
+    // println!("img_shape: {:?}", img_shape);
+    // println!("filter_shape: {:?}", filter_shape);
+    // println!("stride: {}", stride);
+    // println!("padding: {}", pad);
+
     let (batch_num, channel_num, img_h, img_w) = img_shape;
+    let img_h = img_h + pad * 2;
+    let img_w = img_w + pad * 2;
     let (_, _, filter_h, filter_w) = filter_shape;
 
-    let step_h = (img_h + 2 * pad - filter_h) / stride + 1;
-    let step_w = (img_w + 2 * pad - filter_w) / stride + 1;
+    let step_h = (img_h - filter_h) / stride + 1;
+    let step_w = (img_w - filter_w) / stride + 1;
 
-    let mut img = Array4::<f64>::zeros(img_shape);
+    let mut img = Array4::<f64>::zeros((batch_num, channel_num, img_h, img_w));
 
     let mut col_6d = col.to_shared().reshape((batch_num, step_h, step_w, channel_num, filter_h, filter_w));
     col_6d.swap_axes(4, 5);
@@ -247,6 +262,8 @@ pub fn col2im(
     col_6d.swap_axes(2, 5);
     col_6d.swap_axes(1, 4);
 
+    // println!("img_shape: {:?}", img.shape());
+    // println!("col_6d: {:?}", col_6d.shape());
     for f_h in 0..filter_h {
         for f_w in 0..filter_w {
             let mut ranged_img = img.slice_mut(s![.., .., f_h..=img_h-filter_h+f_h;stride, f_w..=img_w-filter_w+f_w;stride]);
@@ -256,7 +273,8 @@ pub fn col2im(
             ranged_img.assign(&(&ranged_img + shaped_ranged_col));
         }
     }
-    return img;
+    let depad_img = img.slice(s!(.., .., pad..img_h-pad, pad..img_w-pad)).to_owned();
+    return depad_img;
 }
 
 fn pad_array4(data: &Array4<f64>, pad: [(usize, usize); 4]) -> Array4<f64> {
@@ -325,6 +343,7 @@ mod test {
             opt_b,  // optimizer_b
             1,      // batch_num
             3,      // channel_size
+            5,      // filter_num
             3,      // filter_h
             3,      // filter_w
             28,     // img_h
@@ -339,8 +358,8 @@ mod test {
         let filter_value = filter.forward(true);
         let bias_value = bias.forward(true);
 
-        assert_eq!(filter_value.shape(), [100, 27]);
-        assert_eq!(bias_value.shape(), [100, 1]);
+        assert_eq!(filter_value.shape(), [5, 27]);
+        assert_eq!(bias_value.shape(), [5, 1]);
 
         let (filter_std_dev, _, filter_avg) = standard_devication(&filter_value.to_shared().reshape(filter_value.len()).to_vec());
         let (bias_std_dev, _, bias_avg) = standard_devication(&bias_value.to_shared().reshape(bias_value.len()).to_vec());
@@ -649,7 +668,6 @@ mod test {
         // println!("df_expect: {:?}", df_expect);
         let mut filter = MockNetworkLayer::new();
         filter.expect_forward()
-            .times(1)
             .returning(|_| -> Array2<f64> {
                 // FN:2, C:2 FH:3 FW:3
                 Array::from_shape_vec(

@@ -14,6 +14,7 @@ const TST_IMG_SIZE: usize = 2000;
 // Hyper parameter
 const ITERS_NUM: u32 = 1000;
 const MINIBATCH_SIZE: usize = 100;
+const CHANNEL_SIZE: usize = 1;
 const DROUPOUT_RATE: f64 = 0.15;
 const SGD_LEARNING_RATE: f64 = 0.001;
 const MOMENTUM_LEARNING_RATE: f64 = 0.1;
@@ -27,8 +28,7 @@ const ADAM_FLICTION_V: f64 = 0.999;
 
 
 fn main(){
-    // switch_main();
-    switch_overfitting()
+    switch_main();
 }
 
 fn switch_main() {
@@ -45,78 +45,73 @@ fn switch_main() {
     // Create NN from layers stack
     // Include loss layer
     let layers = DirectValue::new(Array2::<f64>::zeros((MINIBATCH_SIZE, 28*28)));
+
+    let layers = Convolution::new_random(
+        layers, 
+        Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
+        Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
+        MINIBATCH_SIZE,
+        CHANNEL_SIZE,
+        5,  // filter_num
+        4,  // filter_h
+        4,  // filter_h
+        28, // data_h
+        28, // data_w
+        2, // stride
+        0, // padding
+    );  // -> (MINIBATCH_SIZE, 5, 13, 13)
+    let layers = Relu::new(layers);
+
+    let layers = Pooling::new(
+        layers,
+        (MINIBATCH_SIZE, 5, 13, 13),
+        3, // filter_h
+        3, // filter_w
+        3, // stride
+        1, // padding
+    ); // -> (MINIBATCH_SIZE, 5, 5, 5)
+
+    // let layers = Pooling::new(
+    //     layers,
+    //     (MINIBATCH_SIZE, 1, 28, 28),
+    //     2, // filter_h
+    //     2, // filter_w
+    //     2, // stride
+    //     0, // padding
+    // ); // -> (MINIBATCH_SIZE, 1, 14, 14)
+
     let layers = Affine::new_random_with_name(
         layers,
-        28*28,
-        200,
-        // Sgd::new(SGD_LEARNING_RATE),
-        // Sgd::new(SGD_LEARNING_RATE)
-        // Momentum::new(MOMENTUM_LEARNING_RATE, MOMENTUM_FLICTION),
-        // Momentum::new(MOMENTUM_LEARNING_RATE, MOMENTUM_FLICTION)
-        // Rmsprop::new(RMSPROP_LEARNING_RATE, RMSPROP_FLICTION),
-        // Rmsprop::new(RMSPROP_LEARNING_RATE, RMSPROP_FLICTION)
-        // AdaGrad::new(ADAGRAD_LEARNING_RATE),
-        // AdaGrad::new(ADAGRAD_LEARNING_RATE)
+        // 1*28*28,
+        // 1*14*14,
+        // 5*13*13,
+        5*5*5,
+        20,
         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
         "layer1".to_string(),
     );
-    let layers = BatchNorm::new(
-        layers,
-        NetworkBatchNormValueLayer::new(
-            Array2::<f64>::ones((200, 200)),
-            Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        ),
-        NetworkBatchNormValueLayer::new(
-            Array2::<f64>::zeros((200, 200)),
-            Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        )
-    );
+    // let layers = BatchNorm::new(
+    //     layers,
+    //     NetworkBatchNormValueLayer::new(
+    //         Array2::<f64>::ones((200, 200)),
+    //         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
+    //     ),
+    //     NetworkBatchNormValueLayer::new(
+    //         Array2::<f64>::zeros((200, 200)),
+    //         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
+    //     )
+    // ); // -> (MINIBATCH_SIZE, 20)
     let layers = Relu::new(layers);
+
     let layers = Affine::new_random_with_name(
         layers,
-        200,
+        20,
         10,
-        // Sgd::new(SGD_LEARNING_RATE),
-        // Sgd::new(MOMENTUM_LEARNING_RATE)
-        // Momentum::new(MOMENTUM_LEARNING_RATE, MOMENTUM_FLICTION),
-        // Momentum::new(MOMENTUM_LEARNING_RATE, MOMENTUM_FLICTION)
-        // Rmsprop::new(RMSPROP_LEARNING_RATE, RMSPROP_FLICTION),
-        // Rmsprop::new(RMSPROP_LEARNING_RATE, RMSPROP_FLICTION)
-        // AdaGrad::new(ADAGRAD_LEARNING_RATE),
-        // AdaGrad::new(ADAGRAD_LEARNING_RATE)
         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
         "layer2".to_string(),
     );
-    // let layers = BatchNorm::new(
-    //     layers,
-    //     NetworkBatchNormValueLayer::new(
-    //         Array2::<f64>::ones((200, 10)),
-    //         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-    //     ),
-    //     NetworkBatchNormValueLayer::new(
-    //         Array2::<f64>::zeros((20, 10)),
-    //         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-    //     )
-    // );
-    // let layers = ReluLayer::new(layers);
-    // let layers = AffineLayer::new_random(
-    //     layers,
-    //     50,
-    //     10,
-    //     // Sgd::new(MOMENTUM_LEARNING_RATE),
-    //     // Sgd::new(MOMENTUM_LEARNING_RATE)
-    //     // Momentum::new(MOMENTUM_LEARNING_RATE, MOMENTUM_FLICTION),
-    //     // Momentum::new(MOMENTUM_LEARNING_RATE, MOMENTUM_FLICTION)
-    //     // Rmsprop::new(RMSPROP_LEARNING_RATE, RMSPROP_FLICTION),
-    //     // Rmsprop::new(RMSPROP_LEARNING_RATE, RMSPROP_FLICTION)
-    //     // AdaGrad::new(ADAGRAD_LEARNING_RATE),
-    //     // AdaGrad::new(ADAGRAD_LEARNING_RATE)
-    //     Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-    //     Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-    //     "layer3".to_string(),
-    // );
     let layers = SoftmaxWithLoss::new(layers, Array2::<f64>::zeros((MINIBATCH_SIZE, 10)));
     let mut nn = NeuralNetwork::new(layers);
 
@@ -133,190 +128,6 @@ fn switch_main() {
         }
     );
 }
-
-fn switch_overfitting() {
-    // load MNIST
-    let mnist = MnistImages::new(TRN_IMG_SIZE, VAL_IMG_SIZE, TST_IMG_SIZE);
-    let trn_img = mnist.get_trn_img();
-    let trn_lbl = mnist.get_trn_lbl();
-    let trn_lbl_onehot = mnist.get_trn_lbl_one_hot();
-
-    let tst_img = mnist.get_tst_img();
-    let tst_lbl = mnist.get_tst_lbl();
-    let tst_lbl_onehot = mnist.get_tst_lbl_one_hot();
-
-    let (trn_img, trn_lbl_onehot) = make_minibatch_data(300, &trn_img, &trn_lbl_onehot);
-
-    // Create NN from layers stack
-    // Include loss layer
-    let layers = DirectValue::new(Array2::<f64>::zeros((MINIBATCH_SIZE, 28*28)));
-
-    // Layer1
-    let layers = Affine::new_random_with_name(
-        layers,
-        28*28,
-        100,
-        Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        Adam::new(ADAM_LEARNING_RATE/100f64, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        "layer1".to_string(),
-    );
-    let layers = BatchNorm::new(
-        layers,
-        NetworkBatchNormValueLayer::new(
-            Array2::<f64>::ones((MINIBATCH_SIZE, 100)),
-            Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        ),
-        NetworkBatchNormValueLayer::new(
-            Array2::<f64>::zeros((MINIBATCH_SIZE, 100)),
-            Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        )
-    );
-    let layers = Dropout::new(layers, DROUPOUT_RATE);
-    let layers = Relu::new(layers);
-
-    // Layer2
-    let layers = Affine::new_random_with_name(
-        layers,
-        100,
-        100,
-        Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        Adam::new(ADAM_LEARNING_RATE/100f64, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        "layer2".to_string(),
-    );
-    let layers = BatchNorm::new(
-        layers,
-        NetworkBatchNormValueLayer::new(
-            Array2::<f64>::ones((MINIBATCH_SIZE, 100)),
-            Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        ),
-        NetworkBatchNormValueLayer::new(
-            Array2::<f64>::zeros((MINIBATCH_SIZE, 100)),
-            Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        )
-    );
-    let layers = Relu::new(layers);
-    let layers = Dropout::new(layers, DROUPOUT_RATE);
-
-    // Layer3
-    let layers = Affine::new_random_with_name(
-        layers,
-        100,
-        100,
-        Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        Adam::new(ADAM_LEARNING_RATE/100f64, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        "layer3".to_string(),
-    );
-    let layers = BatchNorm::new(
-        layers,
-        NetworkBatchNormValueLayer::new(
-            Array2::<f64>::ones((MINIBATCH_SIZE, 100)),
-            Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        ),
-        NetworkBatchNormValueLayer::new(
-            Array2::<f64>::zeros((MINIBATCH_SIZE, 100)),
-            Adam::new(ADAM_LEARNING_RATE/100f64, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        )
-    );
-    let layers = Relu::new(layers);
-    let layers = Dropout::new(layers, DROUPOUT_RATE);
-
-    // Layer4
-    let layers = Affine::new_random_with_name(
-        layers,
-        100,
-        100,
-        Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        Adam::new(ADAM_LEARNING_RATE/100f64, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        "layer4".to_string(),
-    );
-    let layers = BatchNorm::new(
-        layers,
-        NetworkBatchNormValueLayer::new(
-            Array2::<f64>::ones((MINIBATCH_SIZE, 100)),
-            Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        ),
-        NetworkBatchNormValueLayer::new(
-            Array2::<f64>::zeros((MINIBATCH_SIZE, 100)),
-            Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        )
-    );
-    let layers = Relu::new(layers);
-    let layers = Dropout::new(layers, DROUPOUT_RATE);
-
-    // // Layer5
-    // let layers = AffineLayer::new_random_with_name(
-    //     layers,
-    //     100,
-    //     100,
-    //     Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-    //     Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-    //     "layer5".to_string(),
-    // );
-    // let layers = BatchNorm::new(
-    //     layers,
-    //     NetworkBatchNormValueLayer::new(
-    //         Array2::<f64>::ones((MINIBATCH_SIZE, 100)),
-    //         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-    //     ),
-    //     NetworkBatchNormValueLayer::new(
-    //         Array2::<f64>::zeros((MINIBATCH_SIZE, 100)),
-    //         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-    //     )
-    // );
-    // let layers = ReluLayer::new(layers);
-
-    // // Layer6
-    // let layers = AffineLayer::new_random_with_name(
-    //     layers,
-    //     100,
-    //     100,
-    //     Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-    //     Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-    //     "layer6".to_string(),
-    // );
-    // let layers = BatchNorm::new(
-    //     layers,
-    //     NetworkBatchNormValueLayer::new(
-    //         Array2::<f64>::ones((MINIBATCH_SIZE, 100)),
-    //         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-    //     ),
-    //     NetworkBatchNormValueLayer::new(
-    //         Array2::<f64>::zeros((200, 100)),
-    //         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-    //     )
-    // );
-    // let layers = ReluLayer::new(layers);
-
-    // Layer7
-    let layers = Affine::new_random_with_name(
-        layers,
-        100,
-        10,
-        Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        Adam::new(ADAM_LEARNING_RATE/100f64, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        "layer7".to_string(),
-    );
-    let layers = Relu::new(layers);
-    let layers = Dropout::new(layers, DROUPOUT_RATE);
-
-    let layers = SoftmaxWithLoss::new(layers, Array2::<f64>::zeros((MINIBATCH_SIZE, 10)));
-
-    let mut nn = NeuralNetwork::new(layers);
-
-    nn.learn(
-        LearningParameter{
-            batch_size:     MINIBATCH_SIZE,
-            iterations_num: ITERS_NUM,
-        }, 
-        LearningResource {
-            trn_data:       trn_img.clone(),
-            trn_lbl_onehot: trn_lbl_onehot.clone(),
-            tst_data:       tst_img.clone(),
-            tst_lbl_onehot: tst_lbl_onehot.clone(),
-        }
-    );
-}
-    
 
 #[cfg(test)]
 mod test_mod {

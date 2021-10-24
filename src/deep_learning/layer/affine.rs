@@ -211,6 +211,7 @@ mod test {
 
     #[test]
     fn test_affine_backward() {
+        println!("affine backward");
         // X
         let mut mock_x = MockNetworkLayer::new();
         let mut x_value = arr2(&

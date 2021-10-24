@@ -30,6 +30,7 @@ impl NetworkLayer for Relu {
         return self.y.clone().unwrap();
     }
     fn backward(&mut self, dout: Array2<f64>) {
+        // println!("relu backward");
         let x = self.x.forward(true);
         if dout.shape() != x.shape() {
             panic!("Different shape. dout: {:?} x: {:?}", dout.shape(), x.shape());

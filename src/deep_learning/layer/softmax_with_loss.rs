@@ -47,9 +47,10 @@ impl NetworkLayer for SoftmaxWithLoss {
         self.z.clone().unwrap()
     }
     fn forward_skip_loss(&mut self, is_learning: bool) -> Array2<f64> {
-        self.x.forward_skip_loss(is_learning)
+        self.x.forward(is_learning)
     }
     fn backward(&mut self, dout: Array2<f64>) {
+        // println!("softmax backward");
         let x = self.x.forward(true);
         let softmax_res = softmax(&x);
 

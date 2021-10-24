@@ -57,9 +57,6 @@ impl NeuralNetwork {
         correct_rates.push(rate);
         losses.push(loss);
         // self.last_layer.plot();
-        let (loss, rate) = self.test(parameter.batch_size, &resource.trn_data, &resource.trn_lbl_onehot);
-        correct_rates_o.push(rate);
-        losses_o.push(loss);
 
         for iteration in 0..parameter.iterations_num {
             // Choise batch data
@@ -105,7 +102,7 @@ impl NeuralNetwork {
             self.set_input(&batch_data);
             self.set_lbl(&batch_lbl_onehot);
 
-            // Forward (skip loss)
+            // Forward (skip loss)        
             let test_res = self.last_layer.forward_skip_loss(false);
 
             correct_rate += calc_correct_rate(&test_res, &batch_lbl_onehot) / 10f64;
