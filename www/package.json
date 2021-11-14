@@ -8,8 +8,7 @@
     "start": "webpack-dev-server --mode development"
   },
   "dependencies": {
-    "chart.js": "^2.8.0",
-    "deep_learning": "file:../pkg"
+    "chart.js": "^2.8.0"
   },
   "devDependencies": {
     "copy-webpack-plugin": "^5.0.0",
