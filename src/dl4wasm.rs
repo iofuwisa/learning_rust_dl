@@ -1,12 +1,14 @@
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use image::*;
+use wasm_bindgen_futures::JsFuture;
+// use image::*;
 use js_sys::*;
-use web_sys::{Element, CanvasRenderingContext2d, HtmlCanvasElement, ImageData};
+use web_sys::{Request, RequestInit, RequestMode, Response, Element, CanvasRenderingContext2d, HtmlCanvasElement, ImageData};
 use ndarray::{
     s,
     Array2
 };
+use serde::{Deserialize, Serialize};
 
 fn console_log(s: &str) {
     web_sys::console::log_1(&JsValue::from(s));
@@ -83,7 +85,7 @@ pub fn guess() {
             }
             converted_img[(hi, wi)] = max as f64 / 255f64;
         }
-    }7
+    }
 
     for i in 0..28 {
         let mut line = "".to_string();
@@ -95,5 +97,46 @@ pub fn guess() {
             }
         }
         console_log(&line);
+    }
+}
+
+#[wasm_bindgen]
+pub async fn fetch() {
+    let mut opts = RequestInit::new();
+    opts.method("GET");
+    // opts.mode(RequestMode::SameOrigin);
+    opts.mode(RequestMode::Cors);
+    let url = "/";
+    let request_res = Request::new_with_str_and_init(&url, &opts);
+    if let Ok(request) = request_res {
+        let window = web_sys::window().unwrap();
+        let resp_value_res = JsFuture::from(window.fetch_with_request(&request)).await;
+
+        if let Ok(resp_value) = resp_value_res {
+            let resp: Response = resp_value.dyn_into().unwrap();
+            console_log("Success");
+            console_log(&format!("url: {}", resp.url()));
+            console_log(&format!("status: {}", resp.status_text()));
+
+            let text_res = resp.text();
+            if let Ok(text_future) = text_res {
+                let text_future_res = JsFuture::from(text_future).await;
+                
+                if let Ok(text) = text_future_res {
+                    console_log(&format!("text: {}", text.as_string().unwrap()));
+                } else if let Err(e) = text_future_res {
+                    console_log("Futue error");
+                }
+            
+            } else if let Err(e) = text_res {
+                console_log("Text error");
+            }
+            
+        } else if let Err(e) = resp_value_res {
+            console_log("Request error");
+        }
+
+    } else if let Err(e) = request_res {
+        console_log("Init error");
     }
 }

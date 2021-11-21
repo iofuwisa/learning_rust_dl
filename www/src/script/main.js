@@ -1,6 +1,11 @@
 let dl
 const js = import("./wasm/deep_learning.js");
 
+js.then(js => {
+    // console.log(js)
+    js.fetch()
+  });
+
 let canvasField;
 
 window.onload = function() {
