@@ -115,18 +115,22 @@ fn switch_main() {
     let layers = SoftmaxWithLoss::new(layers, Array2::<f64>::zeros((MINIBATCH_SIZE, 10)));
     let mut nn = NeuralNetwork::new(layers);
 
-    nn.learn(
-        LearningParameter{
-            batch_size:     MINIBATCH_SIZE,
-            iterations_num: ITERS_NUM,
-        }, 
-        LearningResource {
-            trn_data:       trn_img.clone(),
-            trn_lbl_onehot: trn_lbl_onehot.clone(),
-            tst_data:       tst_img.clone(),
-            tst_lbl_onehot: tst_lbl_onehot.clone(),
-        }
-    );
+    let res = nn.export();
+    if let Err(e) = res {
+        println!("{}", e);
+    }
+    // nn.learn(
+    //     LearningParameter{
+    //         batch_size:     MINIBATCH_SIZE,
+    //         iterations_num: ITERS_NUM,
+    //     }, 
+    //     LearningResource {
+    //         trn_data:       trn_img.clone(),
+    //         trn_lbl_onehot: trn_lbl_onehot.clone(),
+    //         tst_data:       tst_img.clone(),
+    //         tst_lbl_onehot: tst_lbl_onehot.clone(),
+    //     }
+    // );
 }
 
 #[cfg(test)]

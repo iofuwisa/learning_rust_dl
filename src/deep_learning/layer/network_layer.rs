@@ -1,3 +1,4 @@
+use std::fs::File;
 use ndarray::prelude::{
     Array2,
 };
@@ -14,4 +15,9 @@ pub trait NetworkLayer {
     fn plot(&self);
     fn weight_squared_sum(&self) -> f64;
     fn weight_sum(&self) -> f64;
+    #[cfg (not (target_family = "wasm"))]
+    fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
+        File::open("aaaaaaa")?;
+        Ok(())
+    }
 }

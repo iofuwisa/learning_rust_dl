@@ -1,5 +1,8 @@
+use std::fs::File;
+use std::io::{self, Read, Write, BufReader};
 use ndarray::prelude::{
     Array2,
+    Axis,
 };
 
 use crate::deep_learning::layer::*;
@@ -8,6 +11,7 @@ use crate::deep_learning::graph_plotter::*;
 
 
 // Affine value(weight and bias)
+const LAYER_LABEL: &str = "a_direct";
 pub struct AffineDirectValue {
     value: Array2<f64>,
     optimizer: Box<dyn Optimizer>,
@@ -77,6 +81,19 @@ impl NetworkLayer for AffineDirectValue {
     }
     fn weight_sum(&self) -> f64 {
         panic!("AffineDirectValue::weight_sum is never weight_sum");
+    }
+    fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
+        writeln!(file, "{}", LAYER_LABEL)?;
+
+        for row in self.value.axis_iter(Axis(0)) {
+            for v in row {
+                write!(file, "{},", v)?;
+            }
+            writeln!(file, "")?;
+        }
+
+        file.flush()?;
+        Ok(())
     }
 }
 

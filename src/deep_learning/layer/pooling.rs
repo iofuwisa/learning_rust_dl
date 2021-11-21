@@ -1,3 +1,5 @@
+use std::fs::File;
+use std::io::{self, Read, Write, BufReader};
 use ndarray::{
     Array1,
     Array2,
@@ -10,6 +12,7 @@ use crate::deep_learning::layer::*;
 // use crate::deep_learning::common::*;
 
 
+const LAYER_LABEL: &str = "pooling";
 pub struct Pooling {
     x: Box<dyn NetworkLayer>,
     y: Option<Array2<f64>>,
@@ -119,6 +122,19 @@ impl NetworkLayer for Pooling {
     }
     fn weight_sum(&self) -> f64 {
         return self.x.weight_sum();
+    }
+    fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
+        writeln!(file, "{}", LAYER_LABEL)?;
+
+        writeln!(file, "{},{},{},{}", self.x_shape.0, self.x_shape.1, self.x_shape.2, self.x_shape.3)?;
+        writeln!(file, "{}", self.filter_h)?;
+        writeln!(file, "{}", self.filter_w)?;
+        writeln!(file, "{}", self.stride)?;
+        writeln!(file, "{}", self.padding)?;
+
+        file.flush()?;
+        self.x.export(file)?;
+        Ok(())
     }
 }
 

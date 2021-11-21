@@ -1,4 +1,6 @@
 use std::f64::consts::E;
+use std::fs::File;
+use std::io::{self, Read, Write, BufReader};
 use ndarray::prelude::{
     Array2,
 };
@@ -9,6 +11,7 @@ use crate::deep_learning::common::*;
 
 
 // Softmax with loss
+const LAYER_LABEL: &str = "softmax";
 pub struct SoftmaxWithLoss {
     x: Box<dyn NetworkLayer>,
     t: Array2<f64>,
@@ -85,6 +88,12 @@ impl NetworkLayer for SoftmaxWithLoss {
     }
     fn weight_sum(&self) -> f64 {
         return self.x.weight_sum();
+    }
+    fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
+        writeln!(file, "{}", LAYER_LABEL)?;
+        file.flush()?;
+        self.x.export(file)?;
+        Ok(())
     }
 }
 

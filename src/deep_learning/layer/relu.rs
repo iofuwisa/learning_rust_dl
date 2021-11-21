@@ -1,3 +1,6 @@
+
+use std::fs::File;
+use std::io::{self, Read, Write, BufReader};
 use ndarray::prelude::{
     Array2,
 };
@@ -7,6 +10,8 @@ use crate::deep_learning::layer::*;
 // Relu
 // y = x (x > 0)
 // y = 0 (x <= 0)
+
+const LAYER_LABEL: &str = "relu";
 pub struct Relu {
     x: Box<dyn NetworkLayer>,
     y: Option<Array2<f64>>, 
@@ -67,6 +72,12 @@ impl NetworkLayer for Relu {
     }
     fn weight_sum(&self) -> f64 {
         return self.x.weight_sum();
+    }
+    fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
+        writeln!(file, "{}", LAYER_LABEL)?;
+        file.flush()?;
+        self.x.export(file)?;
+        Ok(())
     }
 }
 

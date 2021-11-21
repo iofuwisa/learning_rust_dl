@@ -1,3 +1,5 @@
+use std::fs::File;
+use std::io::{self, Read, Write, BufReader};
 use ndarray::prelude::{
     Array2,
     Axis,
@@ -8,6 +10,7 @@ use crate::deep_learning::optimizer::*;
 use crate::deep_learning::common::*;
 
 // Affine
+const LAYER_LABEL: &str = "affine";
 pub struct Affine {
     x: Box<dyn NetworkLayer>,
     w: Box<dyn NetworkLayer>,
@@ -140,6 +143,14 @@ impl NetworkLayer for Affine {
             self.x.weight_sum() + 
             self.w.weight_sum() + 
             self.b.weight_sum();
+    }
+    fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
+        writeln!(file, "{}", LAYER_LABEL)?;
+        file.flush()?;
+        self.x.export(file)?;
+        self.w.export(file)?;
+        self.b.export(file)?;
+        Ok(())
     }
 }
 

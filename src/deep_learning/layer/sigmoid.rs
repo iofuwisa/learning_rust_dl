@@ -1,3 +1,5 @@
+use std::fs::File;
+use std::io::{self, Read, Write, BufReader};
 use ndarray::prelude::{
     Array2,
 };
@@ -7,6 +9,7 @@ use crate::deep_learning::layer::*;
 
 // Sigmoid
 // y = 1 / (1 + exp(-x))
+const LAYER_LABEL: &str = "sigmoid";
 pub struct Sigmoid {
     x: Box<dyn NetworkLayer>,
     y: Option<Array2<f64>>,
@@ -73,6 +76,12 @@ impl NetworkLayer for Sigmoid {
     }
     fn weight_sum(&self) -> f64 {
         return self.x.weight_sum();
+    }
+    fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
+        writeln!(file, "{}", LAYER_LABEL)?;
+        file.flush()?;
+        self.x.export(file)?;
+        Ok(())
     }
 }
 

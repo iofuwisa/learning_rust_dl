@@ -1,3 +1,5 @@
+use std::fs::File;
+use std::io::{self, Read, Write, BufReader};
 use ndarray::{
     s,
     Array2,
@@ -22,6 +24,8 @@ pub struct Convolution {
     pad: usize,
 }
 
+
+const LAYER_LABEL: &str = "conv";
 impl Convolution {
     pub fn new<TX, TW, TB>(
         x: TX,
@@ -192,6 +196,21 @@ impl NetworkLayer for Convolution {
     }
     fn weight_sum(&self) -> f64 {
         return self.weight_sum();
+    }
+    fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
+        writeln!(file, "{}", LAYER_LABEL)?;
+
+        writeln!(file, "{},{},{},{}", self.x_shape.0, self.x_shape.1, self.x_shape.2, self.x_shape.3)?;
+        writeln!(file, "{},{},{},{}", self.y_shape.0, self.y_shape.1, self.y_shape.2, self.y_shape.3)?;
+        writeln!(file, "{},{},{},{}", self.filter_shape.0, self.filter_shape.1, self.filter_shape.2, self.filter_shape.3)?;
+        writeln!(file, "{}", self.stride)?;
+        writeln!(file, "{}", self.pad)?;
+
+        file.flush()?;
+        self.x.export(file)?;
+        self.filter.export(file)?;
+        self.bias.export(file)?;
+        Ok(())
     }
 }
 

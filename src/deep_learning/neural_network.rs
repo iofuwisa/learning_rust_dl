@@ -1,3 +1,5 @@
+use std::fs::File;
+use std::io::{self, BufRead, BufReader};
 use ndarray::prelude::{
     Axis,
     Array2,
@@ -123,6 +125,19 @@ impl NeuralNetwork {
         println!("");
 
         return (loss, correct_rate);
+    }
+
+    pub fn export(&self) -> Result<(), Box<std::error::Error>> {
+        let file_path = "./nn.csv";
+        // let mut file = match File::open(file_path) {
+        //     Err(why) => File::create(file_path)?,
+        //     Ok(file) => file,
+        // };
+        let mut file = File::create(file_path)?;
+
+        self.last_layer.export(&mut file);
+
+        return Ok(())
     }
 } 
 

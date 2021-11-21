@@ -1,3 +1,5 @@
+use std::fs::File;
+use std::io::{self, Read, Write, BufReader};
 use ndarray::prelude::{
     Array2,
 };
@@ -6,6 +8,7 @@ use rand::Rng;
 use crate::deep_learning::layer::*;
 
 // Dropout
+const LAYER_LABEL: &str = "dropout";
 pub struct Dropout {
     x: Box<dyn NetworkLayer>,
     y: Option<Array2<f64>>,
@@ -80,5 +83,15 @@ impl NetworkLayer for Dropout {
     }
     fn weight_sum(&self) -> f64 {
         return self.x.weight_sum();
+    }
+    fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
+        writeln!(file, "{}", LAYER_LABEL)?;
+
+        writeln!(file, "{}", self.dropout_rate)?;
+        writeln!(file, "{}", self.is_learning)?;
+
+        file.flush()?;
+        self.x.export(file)?;
+        Ok(())
     }
 }

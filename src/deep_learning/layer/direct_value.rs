@@ -1,9 +1,13 @@
+use std::fs::File;
+use std::io::{self, Read, Write, BufReader};
 use ndarray::prelude::{
+    Axis,
     Array2,
 };
 
 use crate::deep_learning::layer::*;
 
+const LAYER_LABEL: &str = "direct";
 pub struct DirectValue {
     value: Array2<f64>,
 }
@@ -44,5 +48,18 @@ impl NetworkLayer for DirectValue {
     }
     fn weight_sum(&self) -> f64 {
         return 0f64;
+    }
+    fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
+        writeln!(file, "{}", LAYER_LABEL)?;
+
+        for row in self.value.axis_iter(Axis(0)) {
+            for v in row {
+                write!(file, "{},", v)?;
+            }
+            writeln!(file, "")?;
+        }
+
+        file.flush()?;
+        Ok(())
     }
 }
