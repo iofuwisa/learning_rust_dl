@@ -50,29 +50,29 @@ impl AffineDirectValue {
     pub fn layer_label() -> &'static str {
         "a_direct"
     }
-    pub fn import<T>(lines: &mut Lines<T>) -> Result<Self, Box<std::error::Error>>
-        where T: BufRead
+    pub fn import<'a, T>(lines: &mut T) -> Self
+        where T: Iterator<Item = &'a str>
     {
         println!("import {}", Self::layer_label());
         // value shape
-        let shape_line = lines.next().unwrap()?;
+        let shape_line = lines.next().unwrap();
         let mut shape_line_split = shape_line.split(',');
         let dim: (usize, usize) = (shape_line_split.next().unwrap().parse::<usize>().unwrap(), shape_line_split.next().unwrap().parse::<usize>().unwrap());
         // value
         let mut value = Array2::<f64>::zeros(dim);
         for row_i in 0..dim.0 {
-            let line = lines.next().unwrap()?;
+            let line = lines.next().unwrap();
             let mut line_split = line.split(',');
             for col_i in 0..dim.1 {
                 value[(row_i, col_i)] = line_split.next().unwrap().parse::<f64>().unwrap();
             }
         }
 
-        Ok(AffineDirectValue {
+        AffineDirectValue {
             value: value,
             optimizer: Box::new(Sgd::new(0.1)),
             name: "".to_string(),
-        })
+        }
     }
 }
 impl NetworkLayer for AffineDirectValue {

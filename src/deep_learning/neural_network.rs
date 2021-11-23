@@ -1,9 +1,8 @@
 use std::fs::File;
-use std::io::{self, BufRead, BufReader, Lines};
+use std::fs;
 use ndarray::prelude::{
     Axis,
     Array2,
-    arr2,
 };
 
 use crate::deep_learning::common::*;
@@ -45,6 +44,7 @@ impl NeuralNetwork {
     pub fn forward(&mut self, is_learning: bool) -> Array2<f64> {
         self.last_layer.forward(is_learning).to_owned()
     }
+    
     pub fn get_layers(self) -> Box::<dyn NetworkLayer>{
         return self.last_layer;
     }
@@ -121,18 +121,30 @@ impl NeuralNetwork {
         return (loss, correct_rate);
     }
 
-    pub fn import() -> Result<NeuralNetwork, Box<std::error::Error>> {
-        let file_path = "./nn.csv";
-        let file = File::open(file_path)?;
-        let mut lines = BufReader::new(file).lines();
-
-        let layer = import_network_layer(&mut lines)?;
-
-        Ok(NeuralNetwork {
-            last_layer: layer,
-        })
+    pub fn import_from_file(file_path: &str) -> Result<NeuralNetwork, Box<std::error::Error>> {
+        let data_string = fs::read_to_string(file_path)?;
+        
+        Ok(Self::import(data_string.as_str()))
     }
 
+    pub fn guess(&mut self, batch_data: &Array2<f64>) -> Array2<f64> {
+        self.set_input(&batch_data);
+        let res = self.last_layer.forward_skip_loss(false);
+        return res;
+    }
+
+    pub fn import(data: &str) -> Self {
+        let mut lines = data.lines();
+
+        let layer = import_network_layer(&mut lines);
+
+        NeuralNetwork {
+            last_layer: layer,
+        }
+
+    }
+
+    #[cfg (not (target_family = "wasm"))]
     pub fn export(&self) -> Result<(), Box<std::error::Error>> {
         let file_path = "./nn.csv";
         // let mut file = match File::open(file_path) {
@@ -145,45 +157,79 @@ impl NeuralNetwork {
 
         return Ok(())
     }
-} 
+}
 
-pub fn import_network_layer<T>(lines: &mut Lines<T>) -> Result<Box<dyn NetworkLayer>, Box<std::error::Error>>
-    where T: BufRead
+pub fn import_network_layer<'a, T>(lines: &mut T) -> Box<dyn NetworkLayer>
+    where T: Iterator<Item = &'a str>
 {
-    // let layer_label = match(lines.next()) {
-    //     Some(line_res) => line_res?,
-    //     None => "".to_string(),
-    // };
-    let layer_label = lines.next().unwrap()?;
+    let layer_label = lines.next().unwrap();
 
     let layer: Box<dyn NetworkLayer> = 
-    if layer_label.as_str() == AffineDirectValue::layer_label() {
-        Box::new(AffineDirectValue::import(lines)?)
-    } else if layer_label.as_str() == Affine::layer_label() {
-        Box::new(Affine::import(lines)?)
-    } else if layer_label.as_str() == BatchNorm::layer_label() {
-        Box::new(BatchNorm::import(lines)?)
-    } else if layer_label.as_str() == Convolution::layer_label() {
-        Box::new(Convolution::import(lines)?)
-    } else if layer_label.as_str() == DirectValue::layer_label() {
-        Box::new(DirectValue::import(lines)?)
-    } else if layer_label.as_str() == Dropout::layer_label() {
-        Box::new(Dropout::import(lines)?)
-    } else if layer_label.as_str() == Pooling::layer_label() {
-        Box::new(Pooling::import(lines)?)
-    } else if layer_label.as_str() == Relu::layer_label() {
-        Box::new(Relu::import(lines)?)
-    } else if layer_label.as_str() == Sigmoid::layer_label() {
-        Box::new(Sigmoid::import(lines)?)
-    } else if layer_label.as_str() == SoftmaxWithLoss::layer_label() {
-        Box::new(SoftmaxWithLoss::import(lines)?)
+    if layer_label == AffineDirectValue::layer_label() {
+        Box::new(AffineDirectValue::import(lines))
+    } else if layer_label == Affine::layer_label() {
+        Box::new(Affine::import(lines))
+    } else if layer_label == BatchNorm::layer_label() {
+        Box::new(BatchNorm::import(lines))
+    } else if layer_label == Convolution::layer_label() {
+        Box::new(Convolution::import(lines))
+    } else if layer_label == DirectValue::layer_label() {
+        Box::new(DirectValue::import(lines))
+    } else if layer_label == Dropout::layer_label() {
+        Box::new(Dropout::import(lines))
+    } else if layer_label == Pooling::layer_label() {
+        Box::new(Pooling::import(lines))
+    } else if layer_label == Relu::layer_label() {
+        Box::new(Relu::import(lines))
+    } else if layer_label == Sigmoid::layer_label() {
+        Box::new(Sigmoid::import(lines))
+    } else if layer_label == SoftmaxWithLoss::layer_label() {
+        Box::new(SoftmaxWithLoss::import(lines))
     } else {
-        panic!("No match layer label '{}'", layer_label.as_str());
+        panic!("No match layer label '{}'", layer_label);
     };
 
     // for l in lines {}
-    return Ok(layer);
+    return layer;
 }
+
+// pub fn import_network_layer<T>(lines: &mut Lines<T>) -> Result<Box<dyn NetworkLayer>, Box<std::error::Error>>
+//     where T: BufRead
+// {
+//     // let layer_label = match(lines.next()) {
+//     //     Some(line_res) => line_res?,
+//     //     None => "".to_string(),
+//     // };
+//     let layer_label = lines.next().unwrap()?;
+
+//     let layer: Box<dyn NetworkLayer> = 
+//     if layer_label.as_str() == AffineDirectValue::layer_label() {
+//         Box::new(AffineDirectValue::import(lines)?)
+//     } else if layer_label.as_str() == Affine::layer_label() {
+//         Box::new(Affine::import(lines)?)
+//     } else if layer_label.as_str() == BatchNorm::layer_label() {
+//         Box::new(BatchNorm::import(lines)?)
+//     } else if layer_label.as_str() == Convolution::layer_label() {
+//         Box::new(Convolution::import(lines)?)
+//     } else if layer_label.as_str() == DirectValue::layer_label() {
+//         Box::new(DirectValue::import(lines)?)
+//     } else if layer_label.as_str() == Dropout::layer_label() {
+//         Box::new(Dropout::import(lines)?)
+//     } else if layer_label.as_str() == Pooling::layer_label() {
+//         Box::new(Pooling::import(lines)?)
+//     } else if layer_label.as_str() == Relu::layer_label() {
+//         Box::new(Relu::import(lines)?)
+//     } else if layer_label.as_str() == Sigmoid::layer_label() {
+//         Box::new(Sigmoid::import(lines)?)
+//     } else if layer_label.as_str() == SoftmaxWithLoss::layer_label() {
+//         Box::new(SoftmaxWithLoss::import(lines)?)
+//     } else {
+//         panic!("No match layer label '{}'", layer_label.as_str());
+//     };
+
+//     // for l in lines {}
+//     return Ok(layer);
+// }
 
 fn calc_correct_rate(result: &Array2<f64>, lbl_onehot: &Array2<f64>) -> f64 {
     if result.shape() != lbl_onehot.shape() {

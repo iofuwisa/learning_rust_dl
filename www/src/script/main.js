@@ -10,6 +10,8 @@ let canvasField;
 
 window.onload = function() {
 
+    document.getElementById("guessResultField").textContent="-"
+
     canvasField = new CanvasField("mainCanvas");
 
     // mouse events
@@ -83,9 +85,13 @@ class CanvasField {
                 }
                 break;
             case 13: // Enter
+                document.getElementById("guessResultField").textContent="loading.."
                 console.log(this.canvasContext.getImageData(0, 0, this.canvas.width, this.canvas.height));
                 js.then(js => {
-                    js.guess();
+                    js.guess()
+                    .then(res => {
+                        document.getElementById("guessResultField").textContent=res
+                      })
                   });
                 break;
             default:
@@ -134,6 +140,7 @@ class PencilShape {
             context.beginPath();
             context.moveTo(this.trajectory[i].x, this.trajectory[i].y);
             context.lineTo(this.trajectory[i+1].x, this.trajectory[i+1].y);
+            context.lineWidth = 8;
             context.stroke();
         }
         context.lineWidth = 1;

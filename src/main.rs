@@ -24,14 +24,19 @@ const RMSPROP_FLICTION: f64 = 0.99;
 const ADAGRAD_LEARNING_RATE: f64 = 0.1;
 const ADAM_LEARNING_RATE: f64 = 0.1;
 const ADAM_FLICTION_M: f64 = 0.9;
-const ADAM_FLICTION_V: f64 = 0.999;
+const ADAM_FLICTION_V: f64 = 0.9999;
 
-
+#[cfg (target_family = "wasm")]
 fn main(){
-    // switch_main();
-    guess_main();
 }
 
+#[cfg (not (target_family = "wasm"))]
+fn main(){
+    lern_main();
+    // guess_main();
+}
+
+#[cfg (not (target_family = "wasm"))]
 fn lern_main() {
     // Load MNIST
     let mnist = MnistImages::new(TRN_IMG_SIZE, VAL_IMG_SIZE, TST_IMG_SIZE);
@@ -42,6 +47,16 @@ fn lern_main() {
     let tst_img = mnist.get_tst_img();
     let tst_lbl = mnist.get_tst_lbl();
     let tst_lbl_onehot = mnist.get_tst_lbl_one_hot();
+
+    // Binarize
+    let mut trn_img_bi = Array2::<f64>::from_shape_fn(
+        trn_img.dim(),
+        |(i,j)| if trn_img[(i,j)] > 0f64 {1f64} else {0f64}
+    );
+    let mut tst_img_bi = Array2::<f64>::from_shape_fn(
+        tst_img.dim(),
+        |(i,j)| if tst_img[(i,j)] > 0f64 {1f64} else {0f64}
+    );
 
     // Create NN from layers stack
     // Include loss layer
@@ -128,9 +143,11 @@ fn lern_main() {
             iterations_num: ITERS_NUM,
         }, 
         LearningResource {
-            trn_data:       trn_img.clone(),
+            // trn_data:       trn_img.clone(),
+            trn_data:       trn_img_bi.clone(),
             trn_lbl_onehot: trn_lbl_onehot.clone(),
-            tst_data:       tst_img.clone(),
+            // tst_data:       tst_img.clone(),
+            tst_data:       tst_img_bi.clone(),
             tst_lbl_onehot: tst_lbl_onehot.clone(),
         }
     );
@@ -141,10 +158,11 @@ fn lern_main() {
     }
 }
 
+#[cfg (not (target_family = "wasm"))]
 fn guess_main() {
-    let mut nn =  match NeuralNetwork::import() {
+    let mut nn =  match NeuralNetwork::import_from_file("nn.csv") {
         Ok(v) => v,
-        Err(e) => panic!("{}", e.description()),
+        Err(e) => panic!("{}", e),
     };
 
     // Load MNIST

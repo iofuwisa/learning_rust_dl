@@ -1,3 +1,5 @@
+
+#[cfg (not (target_family = "wasm"))]
 use std::fs::File;
 use std::io::{self, Read, Write, BufReader, BufRead, Lines};
 use ndarray::prelude::{
@@ -23,27 +25,27 @@ impl DirectValue {
     pub fn layer_label() -> &'static str {
         "direct"
     }
-    pub fn import<T>(lines: &mut Lines<T>) -> Result<Self, Box<std::error::Error>>
-        where T: BufRead
+    pub fn import<'a, T>(lines: &mut T) -> Self
+        where T: Iterator<Item = &'a str>
     {
         println!("import {}", Self::layer_label());
         // value shape
-        let shape_line = lines.next().unwrap()?;
+        let shape_line = lines.next().unwrap();
         let mut shape_line_split = shape_line.split(',');
         let dim: (usize, usize) = (shape_line_split.next().unwrap().parse::<usize>().unwrap(), shape_line_split.next().unwrap().parse::<usize>().unwrap());
         // value
         let mut value = Array2::<f64>::zeros(dim);
         for row_i in 0..dim.0 {
-            let line = lines.next().unwrap()?;
+            let line = lines.next().unwrap();
             let mut line_split = line.split(',');
             for col_i in 0..dim.1 {
                 value[(row_i, col_i)] = line_split.next().unwrap().parse::<f64>().unwrap();
             }
         }
 
-        Ok(DirectValue {
+        DirectValue {
             value: value,
-        })
+        }
     }
 }
 impl NetworkLayer for DirectValue {
@@ -74,6 +76,7 @@ impl NetworkLayer for DirectValue {
     fn weight_sum(&self) -> f64 {
         return 0f64;
     }
+    #[cfg (not (target_family = "wasm"))]
     fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
         writeln!(file, "{}", Self::layer_label())?;
 

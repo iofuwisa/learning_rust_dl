@@ -32,31 +32,31 @@ impl SoftmaxWithLoss {
     pub fn layer_label() -> &'static str {
         "softmax"
     }
-    pub fn import<T>(lines: &mut Lines<T>) -> Result<Self, Box<std::error::Error>>
-        where T: BufRead
+    pub fn import<'a, T>(lines: &mut T) -> Self
+        where T: Iterator<Item = &'a str>
     {
         println!("import {}", Self::layer_label());
         // t shape
-        let shape_line = lines.next().unwrap()?;
+        let shape_line = lines.next().unwrap();
         let mut shape_line_split = shape_line.split(',');
         let dim: (usize, usize) = (shape_line_split.next().unwrap().parse::<usize>().unwrap(), shape_line_split.next().unwrap().parse::<usize>().unwrap());
         // t
         let mut t = Array2::<f64>::zeros(dim);
         for row_i in 0..dim.0 {
-            let line = lines.next().unwrap()?;
+            let line = lines.next().unwrap();
             let mut line_split = line.split(',');
             for col_i in 0..dim.1 {
                 t[(row_i, col_i)] = line_split.next().unwrap().parse::<f64>().unwrap();
             }
         }
 
-        let x = neural_network::import_network_layer(lines)?;
+        let x = neural_network::import_network_layer(lines);
 
-        Ok(SoftmaxWithLoss {
+        SoftmaxWithLoss {
             x: x,
             t: t,
             z: None,
-        })
+        }
     }
 }
 impl NetworkLayer for SoftmaxWithLoss {
@@ -118,6 +118,7 @@ impl NetworkLayer for SoftmaxWithLoss {
     fn weight_sum(&self) -> f64 {
         return self.x.weight_sum();
     }
+    #[cfg (not (target_family = "wasm"))]
     fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
         writeln!(file, "{}", Self::layer_label())?;
 

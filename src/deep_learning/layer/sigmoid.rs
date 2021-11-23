@@ -26,16 +26,16 @@ impl Sigmoid {
     pub fn layer_label() -> &'static str {
         "sigmoid"
     }
-    pub fn import<T>(lines: &mut Lines<T>) -> Result<Self, Box<std::error::Error>>
-        where T: BufRead
+    pub fn import<'a, T>(lines: &mut T) -> Self
+        where T: Iterator<Item = &'a str>
     {
         println!("import {}", Self::layer_label());
-        let x = neural_network::import_network_layer(lines)?;
+        let x = neural_network::import_network_layer(lines);
 
-        Ok(Sigmoid {
+        Sigmoid {
             x: x,
             y: None,
-        })
+        }
     }
 }
 impl NetworkLayer for Sigmoid {
@@ -91,6 +91,7 @@ impl NetworkLayer for Sigmoid {
     fn weight_sum(&self) -> f64 {
         return self.x.weight_sum();
     }
+    #[cfg (not (target_family = "wasm"))]
     fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
         writeln!(file, "{}", Self::layer_label())?;
         file.flush()?;

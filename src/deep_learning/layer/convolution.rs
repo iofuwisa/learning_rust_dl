@@ -107,13 +107,13 @@ impl Convolution {
     pub fn layer_label() -> &'static str {
         "conv"
     }
-    pub fn import<T>(lines: &mut Lines<T>) -> Result<Self, Box<std::error::Error>>
-        where T: BufRead
+    pub fn import<'a, T>(lines: &mut T) -> Self
+        where T: Iterator<Item = &'a str>
     {
         println!("import {}", Self::layer_label());
 
         // x_shape
-        let shape_line = lines.next().unwrap()?;
+        let shape_line = lines.next().unwrap();
         let mut shape_line_split = shape_line.split(',');
         let x_shape: (usize, usize, usize, usize) = (
             shape_line_split.next().unwrap().parse::<usize>().unwrap(),
@@ -123,7 +123,7 @@ impl Convolution {
         );
 
         // y_shape
-        let shape_line = lines.next().unwrap()?;
+        let shape_line = lines.next().unwrap();
         let mut shape_line_split = shape_line.split(',');
         let y_shape: (usize, usize, usize, usize) = (
             shape_line_split.next().unwrap().parse::<usize>().unwrap(),
@@ -133,7 +133,7 @@ impl Convolution {
         );
 
         // filter_shape
-        let shape_line = lines.next().unwrap()?;
+        let shape_line = lines.next().unwrap();
         let mut shape_line_split = shape_line.split(',');
         let filter_shape: (usize, usize, usize, usize) = (
             shape_line_split.next().unwrap().parse::<usize>().unwrap(),
@@ -143,18 +143,18 @@ impl Convolution {
         );
 
         // stride
-        let value_line = lines.next().unwrap()?;
+        let value_line = lines.next().unwrap();
         let stride = value_line.parse::<usize>().unwrap();
 
         // pad
-        let value_line = lines.next().unwrap()?;
+        let value_line = lines.next().unwrap();
         let pad = value_line.parse::<usize>().unwrap();
 
-        let x = neural_network::import_network_layer(lines)?;
-        let filter = neural_network::import_network_layer(lines)?;
-        let bias = neural_network::import_network_layer(lines)?;
+        let x = neural_network::import_network_layer(lines);
+        let filter = neural_network::import_network_layer(lines);
+        let bias = neural_network::import_network_layer(lines);
 
-        Ok(Convolution {
+        Convolution {
             x: x,
             y: None,
             filter: filter,
@@ -164,7 +164,7 @@ impl Convolution {
             filter_shape: filter_shape,
             stride: stride,
             pad: pad,
-        })
+        }
     }
 }
 
@@ -257,6 +257,7 @@ impl NetworkLayer for Convolution {
     fn weight_sum(&self) -> f64 {
         return self.weight_sum();
     }
+    #[cfg (not (target_family = "wasm"))]
     fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
         writeln!(file, "{}", Self::layer_label())?;
 

@@ -1,7 +1,6 @@
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
-// use image::*;
 use js_sys::*;
 use web_sys::{Request, RequestInit, RequestMode, Response, Element, CanvasRenderingContext2d, HtmlCanvasElement, ImageData};
 use ndarray::{
@@ -9,6 +8,8 @@ use ndarray::{
     Array2
 };
 use serde::{Deserialize, Serialize};
+
+use crate::deep_learning::neural_network::*;
 
 fn console_log(s: &str) {
     web_sys::console::log_1(&JsValue::from(s));
@@ -20,11 +21,10 @@ pub fn run() {
 }
 
 #[wasm_bindgen]
-pub fn guess() {
+pub async fn guess() -> i32 {
     console_log("guess!!!!!!!!!!!!!!");
     let document = web_sys::window().unwrap().document().unwrap();
     let canvas: Element = document.get_element_by_id("mainCanvas").unwrap();
-    console_log(&format!("id: {}", canvas.id()));
     let canvas: web_sys::HtmlCanvasElement = canvas
         .dyn_into::<web_sys::HtmlCanvasElement>()
         .map_err(|_| ())
@@ -58,10 +58,10 @@ pub fn guess() {
         image_data_gray.push(max);
     }
 
-    console_log(&format!("image_data_srgb: {:?}", image_data_srgb.len()));
-    console_log(&format!("image_data_srgb: {:?}", image_data_srgb));
-    console_log(&format!("image_data_gray: {:?}", image_data_gray.len()));
-    console_log(&format!("image_data_gray: {:?}", image_data_gray));
+    // console_log(&format!("image_data_srgb: {:?}", image_data_srgb.len()));
+    // console_log(&format!("image_data_srgb: {:?}", image_data_srgb));
+    // console_log(&format!("image_data_gray: {:?}", image_data_gray.len()));
+    // console_log(&format!("image_data_gray: {:?}", image_data_gray));
 
     let img = Array2::from_shape_vec((image_width as usize, image_height as usize), image_data_gray).unwrap();
     let mut converted_img = Array2::<f64>::zeros((28, 28));
@@ -83,14 +83,26 @@ pub fn guess() {
                     max = *n;
                 }
             }
-            converted_img[(hi, wi)] = max as f64 / 255f64;
+            // converted_img[(hi, wi)] = max as f64 / 255f64;
+            converted_img[(hi, wi)] = if max > 0u8 {1f64} else {0f64};
         }
     }
+
+    let dl_data_string = fetch().await;
+    // console_log(dl_data_string.as_str());
+
+    let mut nn = NeuralNetwork::import(dl_data_string.as_str());
+    
+    // gen stub batch
+    let converted_img = converted_img.to_shared().reshape((1,28*28));
+    let MINIBATCH_SIZE: usize = 100;
+    let mut batch = Array2::<f64>::zeros((MINIBATCH_SIZE, 28*28));
+    batch.assign(&converted_img);
 
     for i in 0..28 {
         let mut line = "".to_string();
         for j in 0..28 {
-            if converted_img[(i, j)] > 0f64 {
+            if batch[(0,i*28+j)] > 0f64 {
                 line.push_str("x");
             } else {
                 line.push_str(" ");
@@ -98,15 +110,30 @@ pub fn guess() {
         }
         console_log(&line);
     }
+
+    let res = nn.guess(&batch);
+
+    let mut max_index = 0;
+    for i in 1..10 {
+        if res[(0, max_index)] < res[(0, i)] {
+            max_index = i;
+        }
+    }
+
+    console_log(&format!("{:?}", res));
+    console_log(&format!("result: {}", max_index));
+
+    console_log("finish");
+
+    return max_index as i32;
 }
 
 #[wasm_bindgen]
-pub async fn fetch() {
+pub async fn fetch() -> String {
     let mut opts = RequestInit::new();
     opts.method("GET");
-    // opts.mode(RequestMode::SameOrigin);
-    opts.mode(RequestMode::Cors);
-    let url = "/";
+    opts.mode(RequestMode::SameOrigin);
+    let url = "/nn.csv";
     let request_res = Request::new_with_str_and_init(&url, &opts);
     if let Ok(request) = request_res {
         let window = web_sys::window().unwrap();
@@ -123,20 +150,26 @@ pub async fn fetch() {
                 let text_future_res = JsFuture::from(text_future).await;
                 
                 if let Ok(text) = text_future_res {
-                    console_log(&format!("text: {}", text.as_string().unwrap()));
+                    // console_log(&format!("text: {}", text.as_string().unwrap()));
+                    return text.as_string().unwrap();
                 } else if let Err(e) = text_future_res {
                     console_log("Futue error");
+                    return "".to_string();
                 }
             
             } else if let Err(e) = text_res {
                 console_log("Text error");
+                return "".to_string();
             }
             
         } else if let Err(e) = resp_value_res {
             console_log("Request error");
+            return "".to_string();
         }
 
     } else if let Err(e) = request_res {
         console_log("Init error");
+        return "".to_string();
     }
+    return "".to_string();
 }

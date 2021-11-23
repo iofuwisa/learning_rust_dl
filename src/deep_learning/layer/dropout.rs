@@ -31,29 +31,29 @@ impl Dropout {
     pub fn layer_label() -> &'static str {
         "dropout"
     }
-    pub fn import<T>(lines: &mut Lines<T>) -> Result<Self, Box<std::error::Error>>
-        where T: BufRead
+    pub fn import<'a, T>(lines: &mut T) -> Self
+        where T: Iterator<Item = &'a str>
     {
         println!("import {}", Self::layer_label());
         // dropout_rate
-        let value_line = lines.next().unwrap()?;
+        let value_line = lines.next().unwrap();
         let dropout_rate = value_line.parse::<f64>().unwrap();
 
         // is_learning
-        let value_line = lines.next().unwrap()?;
+        let value_line = lines.next().unwrap();
         let is_learning = value_line.parse::<i32>().unwrap() == 1i32;
 
-        let x = neural_network::import_network_layer(lines)?;
-        let filter = neural_network::import_network_layer(lines)?;
-        let bias = neural_network::import_network_layer(lines)?;
+        let x = neural_network::import_network_layer(lines);
+        let filter = neural_network::import_network_layer(lines);
+        let bias = neural_network::import_network_layer(lines);
 
-        Ok(Dropout {
+        Dropout {
             x: x,
             y: None,
             mask: None,
             dropout_rate: dropout_rate,
             is_learning: is_learning,
-        })
+        }
     }
 }
 impl NetworkLayer for Dropout {
@@ -111,6 +111,7 @@ impl NetworkLayer for Dropout {
     fn weight_sum(&self) -> f64 {
         return self.x.weight_sum();
     }
+    #[cfg (not (target_family = "wasm"))]
     fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
         writeln!(file, "{}", Self::layer_label())?;
 

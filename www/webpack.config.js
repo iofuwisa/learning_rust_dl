@@ -1,5 +1,5 @@
-const CopyWebpackPlugin = require("copy-webpack-plugin");
 const path = require('path');
+const CopyFilePlugin = require("copy-webpack-plugin");
 
 module.exports = {
   entry: "./src/script/main.js",
@@ -8,6 +8,6 @@ module.exports = {
     filename: "main.js",
   },
   plugins: [
-    new CopyWebpackPlugin(['./src/index.html'])
+    new CopyFilePlugin(['./src/index.html', 'nn.csv'])
   ],
 };

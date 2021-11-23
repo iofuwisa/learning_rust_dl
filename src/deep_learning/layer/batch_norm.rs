@@ -90,15 +90,15 @@ impl BatchNorm {
     pub fn layer_label() -> &'static str {
         "batchnorm"
     }
-    pub fn import<T>(lines: &mut Lines<T>) -> Result<Self, Box<std::error::Error>>
-        where T: BufRead
+    pub fn import<'a, T>(lines: &mut T) -> Self
+        where T: Iterator<Item = &'a str>
     {
         println!("import {}", Self::layer_label());
-        let x = neural_network::import_network_layer(lines)?;
-        let w = neural_network::import_network_layer(lines)?;
-        let b = neural_network::import_network_layer(lines)?;
+        let x = neural_network::import_network_layer(lines);
+        let w = neural_network::import_network_layer(lines);
+        let b = neural_network::import_network_layer(lines);
 
-        Ok(BatchNorm {
+        BatchNorm {
             x: x,
             y: None, 
             w: w,
@@ -106,7 +106,7 @@ impl BatchNorm {
             normalized: None,
             distribute: None,
             average: None,
-        })
+        }
     }
 }
 impl NetworkLayer for BatchNorm {
@@ -232,6 +232,7 @@ impl NetworkLayer for BatchNorm {
             self.w.weight_sum() +
             self.b.weight_sum();
     }
+    #[cfg (not (target_family = "wasm"))]
     fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
         writeln!(file, "{}", Self::layer_label())?;
         file.flush()?;

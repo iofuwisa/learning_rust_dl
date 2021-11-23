@@ -93,20 +93,20 @@ impl Affine {
     pub fn layer_label() -> &'static str {
         "affine"
     }
-    pub fn import<T>(lines: &mut Lines<T>) -> Result<Self, Box<std::error::Error>>
-        where T: BufRead
+    pub fn import<'a, T>(lines: &mut T) -> Self
+        where T: Iterator<Item = &'a str>
     {
         println!("import {}", Self::layer_label());
-        let x = neural_network::import_network_layer(lines)?;
-        let w = neural_network::import_network_layer(lines)?;
-        let b = neural_network::import_network_layer(lines)?;
+        let x = neural_network::import_network_layer(lines);
+        let w = neural_network::import_network_layer(lines);
+        let b = neural_network::import_network_layer(lines);
 
-        Ok(Affine {
+        Affine {
             x: x,
             w: w,
             b: b,
             z: None,
-        })
+        }
     }
 }
 impl NetworkLayer for Affine {
