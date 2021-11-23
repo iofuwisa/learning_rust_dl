@@ -6,3 +6,4 @@
 /www/src/script/wasm
 *.log
 /graph/*
+*.csv

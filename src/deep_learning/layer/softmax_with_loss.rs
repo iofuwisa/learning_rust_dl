@@ -1,17 +1,17 @@
 use std::f64::consts::E;
 use std::fs::File;
-use std::io::{self, Read, Write, BufReader};
+use std::io::{self, Read, Write, BufReader, BufRead, Lines};
 use ndarray::prelude::{
     Array2,
 };
 use ndarray::Axis;
 
+use crate::deep_learning::*;
 use crate::deep_learning::layer::*;
 use crate::deep_learning::common::*;
 
 
 // Softmax with loss
-const LAYER_LABEL: &str = "softmax";
 pub struct SoftmaxWithLoss {
     x: Box<dyn NetworkLayer>,
     t: Array2<f64>,
@@ -29,6 +29,35 @@ impl SoftmaxWithLoss {
     }
     pub fn get_x(&self) -> &Box<dyn NetworkLayer> {&self.x}
     pub fn get_t(&self) -> &Array2<f64> {&self.t}
+    pub fn layer_label() -> &'static str {
+        "softmax"
+    }
+    pub fn import<T>(lines: &mut Lines<T>) -> Result<Self, Box<std::error::Error>>
+        where T: BufRead
+    {
+        println!("import {}", Self::layer_label());
+        // t shape
+        let shape_line = lines.next().unwrap()?;
+        let mut shape_line_split = shape_line.split(',');
+        let dim: (usize, usize) = (shape_line_split.next().unwrap().parse::<usize>().unwrap(), shape_line_split.next().unwrap().parse::<usize>().unwrap());
+        // t
+        let mut t = Array2::<f64>::zeros(dim);
+        for row_i in 0..dim.0 {
+            let line = lines.next().unwrap()?;
+            let mut line_split = line.split(',');
+            for col_i in 0..dim.1 {
+                t[(row_i, col_i)] = line_split.next().unwrap().parse::<f64>().unwrap();
+            }
+        }
+
+        let x = neural_network::import_network_layer(lines)?;
+
+        Ok(SoftmaxWithLoss {
+            x: x,
+            t: t,
+            z: None,
+        })
+    }
 }
 impl NetworkLayer for SoftmaxWithLoss {
     fn forward(&mut self, is_learning: bool) -> Array2<f64> {
@@ -90,7 +119,16 @@ impl NetworkLayer for SoftmaxWithLoss {
         return self.x.weight_sum();
     }
     fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
-        writeln!(file, "{}", LAYER_LABEL)?;
+        writeln!(file, "{}", Self::layer_label())?;
+
+        writeln!(file, "{},{}", self.t.shape()[0], self.t.shape()[1])?;
+        for row in self.t.axis_iter(Axis(0)) {
+            for v in row {
+                write!(file, "{},", v)?;
+            }
+            writeln!(file, "")?;
+        }
+
         file.flush()?;
         self.x.export(file)?;
         Ok(())

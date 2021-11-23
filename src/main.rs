@@ -12,7 +12,7 @@ const VAL_IMG_SIZE: usize = 1;
 const TST_IMG_SIZE: usize = 2000;
 
 // Hyper parameter
-const ITERS_NUM: u32 = 1000;
+const ITERS_NUM: u32 = 100;
 const MINIBATCH_SIZE: usize = 100;
 const CHANNEL_SIZE: usize = 1;
 const DROUPOUT_RATE: f64 = 0.15;
@@ -28,10 +28,11 @@ const ADAM_FLICTION_V: f64 = 0.999;
 
 
 fn main(){
-    switch_main();
+    // switch_main();
+    guess_main();
 }
 
-fn switch_main() {
+fn lern_main() {
     // Load MNIST
     let mnist = MnistImages::new(TRN_IMG_SIZE, VAL_IMG_SIZE, TST_IMG_SIZE);
     let trn_img = mnist.get_trn_img();
@@ -50,6 +51,8 @@ fn switch_main() {
         layers, 
         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
+        // Sgd::new(SGD_LEARNING_RATE),
+        // Sgd::new(SGD_LEARNING_RATE),
         MINIBATCH_SIZE,
         CHANNEL_SIZE,
         5,  // filter_num
@@ -86,9 +89,11 @@ fn switch_main() {
         // 1*14*14,
         // 5*13*13,
         5*5*5,
-        20,
+        10,
         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
+        // Sgd::new(SGD_LEARNING_RATE),
+        // Sgd::new(SGD_LEARNING_RATE),
         "layer1".to_string(),
     );
     // let layers = BatchNorm::new(
@@ -102,35 +107,52 @@ fn switch_main() {
     //         Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
     //     )
     // ); // -> (MINIBATCH_SIZE, 20)
-    let layers = Relu::new(layers);
+    // let layers = Relu::new(layers);
 
-    let layers = Affine::new_random_with_name(
-        layers,
-        20,
-        10,
-        Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
-        "layer2".to_string(),
-    );
+    // let layers = Affine::new_random_with_name(
+    //     layers,
+    //     20,
+    //     10,
+    //     // Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
+    //     // Adam::new(ADAM_LEARNING_RATE, ADAM_FLICTION_M, ADAM_FLICTION_V),
+    //     Sgd::new(SGD_LEARNING_RATE),
+    //     Sgd::new(SGD_LEARNING_RATE),
+    //     "layer2".to_string(),
+    // );
     let layers = SoftmaxWithLoss::new(layers, Array2::<f64>::zeros((MINIBATCH_SIZE, 10)));
     let mut nn = NeuralNetwork::new(layers);
+
+    nn.learn(
+        LearningParameter{
+            batch_size:     MINIBATCH_SIZE,
+            iterations_num: ITERS_NUM,
+        }, 
+        LearningResource {
+            trn_data:       trn_img.clone(),
+            trn_lbl_onehot: trn_lbl_onehot.clone(),
+            tst_data:       tst_img.clone(),
+            tst_lbl_onehot: tst_lbl_onehot.clone(),
+        }
+    );
 
     let res = nn.export();
     if let Err(e) = res {
         println!("{}", e);
     }
-    // nn.learn(
-    //     LearningParameter{
-    //         batch_size:     MINIBATCH_SIZE,
-    //         iterations_num: ITERS_NUM,
-    //     }, 
-    //     LearningResource {
-    //         trn_data:       trn_img.clone(),
-    //         trn_lbl_onehot: trn_lbl_onehot.clone(),
-    //         tst_data:       tst_img.clone(),
-    //         tst_lbl_onehot: tst_lbl_onehot.clone(),
-    //     }
-    // );
+}
+
+fn guess_main() {
+    let mut nn =  match NeuralNetwork::import() {
+        Ok(v) => v,
+        Err(e) => panic!("{}", e.description()),
+    };
+
+    // Load MNIST
+    let mnist = MnistImages::new(TRN_IMG_SIZE, VAL_IMG_SIZE, TST_IMG_SIZE);
+    let tst_img = mnist.get_tst_img();
+    let tst_lbl_onehot = mnist.get_tst_lbl_one_hot();
+
+    nn.test(MINIBATCH_SIZE, &tst_img, &tst_lbl_onehot);
 }
 
 #[cfg(test)]

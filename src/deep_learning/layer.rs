@@ -8,7 +8,7 @@ mod affine;
 pub use affine::*;
 
 mod affine_direct_value;
-use affine_direct_value::*;
+pub use affine_direct_value::*;
 
 mod relu;
 pub use relu::*;

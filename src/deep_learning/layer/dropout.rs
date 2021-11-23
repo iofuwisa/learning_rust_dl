@@ -1,14 +1,14 @@
 use std::fs::File;
-use std::io::{self, Read, Write, BufReader};
+use std::io::{self, Read, Write, BufReader, BufRead, Lines};
 use ndarray::prelude::{
     Array2,
 };
 use rand::Rng;
 
+use crate::deep_learning::*;
 use crate::deep_learning::layer::*;
 
 // Dropout
-const LAYER_LABEL: &str = "dropout";
 pub struct Dropout {
     x: Box<dyn NetworkLayer>,
     y: Option<Array2<f64>>,
@@ -28,6 +28,33 @@ impl Dropout {
         }
     }
     pub fn get_x(&self) -> &Box<dyn NetworkLayer> {&self.x}
+    pub fn layer_label() -> &'static str {
+        "dropout"
+    }
+    pub fn import<T>(lines: &mut Lines<T>) -> Result<Self, Box<std::error::Error>>
+        where T: BufRead
+    {
+        println!("import {}", Self::layer_label());
+        // dropout_rate
+        let value_line = lines.next().unwrap()?;
+        let dropout_rate = value_line.parse::<f64>().unwrap();
+
+        // is_learning
+        let value_line = lines.next().unwrap()?;
+        let is_learning = value_line.parse::<i32>().unwrap() == 1i32;
+
+        let x = neural_network::import_network_layer(lines)?;
+        let filter = neural_network::import_network_layer(lines)?;
+        let bias = neural_network::import_network_layer(lines)?;
+
+        Ok(Dropout {
+            x: x,
+            y: None,
+            mask: None,
+            dropout_rate: dropout_rate,
+            is_learning: is_learning,
+        })
+    }
 }
 impl NetworkLayer for Dropout {
     fn forward(&mut self, is_learning: bool) -> Array2<f64> {
@@ -85,10 +112,10 @@ impl NetworkLayer for Dropout {
         return self.x.weight_sum();
     }
     fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
-        writeln!(file, "{}", LAYER_LABEL)?;
+        writeln!(file, "{}", Self::layer_label())?;
 
         writeln!(file, "{}", self.dropout_rate)?;
-        writeln!(file, "{}", self.is_learning)?;
+        writeln!(file, "{}", if self.is_learning {1} else {0})?;
 
         file.flush()?;
         self.x.export(file)?;

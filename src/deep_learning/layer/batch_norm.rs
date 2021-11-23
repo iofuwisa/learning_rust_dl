@@ -1,13 +1,15 @@
+use std::fs::File;
+use std::io::{self, Read, Write, BufReader, BufRead, Lines};
 use ndarray::prelude::{
     Array2,
     Axis,
 };
 
+use crate::deep_learning::*;
 use crate::deep_learning::layer::*;
 use crate::deep_learning::optimizer::*;
 use crate::deep_learning::common::*;
 
-// Affine value(weight and bias)
 pub struct NetworkBatchNormValueLayer {
     value: Array2<f64>,
     optimizer: Box<dyn Optimizer>,
@@ -85,6 +87,27 @@ impl BatchNorm {
         }
     }
     pub fn get_x(&self) -> &Box<dyn NetworkLayer> {&self.x}
+    pub fn layer_label() -> &'static str {
+        "batchnorm"
+    }
+    pub fn import<T>(lines: &mut Lines<T>) -> Result<Self, Box<std::error::Error>>
+        where T: BufRead
+    {
+        println!("import {}", Self::layer_label());
+        let x = neural_network::import_network_layer(lines)?;
+        let w = neural_network::import_network_layer(lines)?;
+        let b = neural_network::import_network_layer(lines)?;
+
+        Ok(BatchNorm {
+            x: x,
+            y: None, 
+            w: w,
+            b: b,
+            normalized: None,
+            distribute: None,
+            average: None,
+        })
+    }
 }
 impl NetworkLayer for BatchNorm {
     fn forward(&mut self, is_learning: bool) -> Array2<f64> {
@@ -208,6 +231,14 @@ impl NetworkLayer for BatchNorm {
             self.x.weight_sum() +
             self.w.weight_sum() +
             self.b.weight_sum();
+    }
+    fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
+        writeln!(file, "{}", Self::layer_label())?;
+        file.flush()?;
+        self.x.export(file)?;
+        self.w.export(file)?;
+        self.b.export(file)?;
+        Ok(())
     }
 }
 

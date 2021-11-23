@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{self, Read, Write, BufReader};
+use std::io::{self, Read, Write, BufReader, BufRead, Lines};
 use ndarray::{
     s,
     Array2,
@@ -8,6 +8,7 @@ use ndarray::{
     Axis,
 };
 
+use crate::deep_learning::*;
 use super::super::super::deep_learning::layer::*;
 use super::super::super::deep_learning::optimizer::*;
 use super::super::super::deep_learning::common::*;
@@ -23,9 +24,6 @@ pub struct Convolution {
     stride: usize,
     pad: usize,
 }
-
-
-const LAYER_LABEL: &str = "conv";
 impl Convolution {
     pub fn new<TX, TW, TB>(
         x: TX,
@@ -106,6 +104,68 @@ impl Convolution {
             pad
         );
     }
+    pub fn layer_label() -> &'static str {
+        "conv"
+    }
+    pub fn import<T>(lines: &mut Lines<T>) -> Result<Self, Box<std::error::Error>>
+        where T: BufRead
+    {
+        println!("import {}", Self::layer_label());
+
+        // x_shape
+        let shape_line = lines.next().unwrap()?;
+        let mut shape_line_split = shape_line.split(',');
+        let x_shape: (usize, usize, usize, usize) = (
+            shape_line_split.next().unwrap().parse::<usize>().unwrap(),
+            shape_line_split.next().unwrap().parse::<usize>().unwrap(),
+            shape_line_split.next().unwrap().parse::<usize>().unwrap(),
+            shape_line_split.next().unwrap().parse::<usize>().unwrap(),
+        );
+
+        // y_shape
+        let shape_line = lines.next().unwrap()?;
+        let mut shape_line_split = shape_line.split(',');
+        let y_shape: (usize, usize, usize, usize) = (
+            shape_line_split.next().unwrap().parse::<usize>().unwrap(),
+            shape_line_split.next().unwrap().parse::<usize>().unwrap(),
+            shape_line_split.next().unwrap().parse::<usize>().unwrap(),
+            shape_line_split.next().unwrap().parse::<usize>().unwrap(),
+        );
+
+        // filter_shape
+        let shape_line = lines.next().unwrap()?;
+        let mut shape_line_split = shape_line.split(',');
+        let filter_shape: (usize, usize, usize, usize) = (
+            shape_line_split.next().unwrap().parse::<usize>().unwrap(),
+            shape_line_split.next().unwrap().parse::<usize>().unwrap(),
+            shape_line_split.next().unwrap().parse::<usize>().unwrap(),
+            shape_line_split.next().unwrap().parse::<usize>().unwrap(),
+        );
+
+        // stride
+        let value_line = lines.next().unwrap()?;
+        let stride = value_line.parse::<usize>().unwrap();
+
+        // pad
+        let value_line = lines.next().unwrap()?;
+        let pad = value_line.parse::<usize>().unwrap();
+
+        let x = neural_network::import_network_layer(lines)?;
+        let filter = neural_network::import_network_layer(lines)?;
+        let bias = neural_network::import_network_layer(lines)?;
+
+        Ok(Convolution {
+            x: x,
+            y: None,
+            filter: filter,
+            bias: bias,
+            x_shape: x_shape,
+            y_shape: y_shape,
+            filter_shape: filter_shape,
+            stride: stride,
+            pad: pad,
+        })
+    }
 }
 
 impl NetworkLayer for Convolution {
@@ -162,8 +222,8 @@ impl NetworkLayer for Convolution {
         let x_4d = x_2d.to_shared().reshape(self.x_shape).to_owned();
         let col_x_2d = im2col(&x_4d.to_owned(), filter_h, filter_w, self.stride, self.pad);
         // let mut df = dout_2d.dot(&col_x_2d);
-        println!("col_x_2d_shape: {:?}", col_x_2d.shape());
-        println!("dout_2d_shape: {:?}", dout_2d.shape());
+        // println!("col_x_2d_shape: {:?}", col_x_2d.shape());
+        // println!("dout_2d_shape: {:?}", dout_2d.shape());
         let mut df = col_x_2d.t().dot(&dout_2d).t().to_owned();
         // println!("df: {:?}", df);
         self.filter.backward(df);
@@ -198,7 +258,7 @@ impl NetworkLayer for Convolution {
         return self.weight_sum();
     }
     fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
-        writeln!(file, "{}", LAYER_LABEL)?;
+        writeln!(file, "{}", Self::layer_label())?;
 
         writeln!(file, "{},{},{},{}", self.x_shape.0, self.x_shape.1, self.x_shape.2, self.x_shape.3)?;
         writeln!(file, "{},{},{},{}", self.y_shape.0, self.y_shape.1, self.y_shape.2, self.y_shape.3)?;

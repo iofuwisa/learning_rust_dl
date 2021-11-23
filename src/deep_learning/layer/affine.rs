@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{self, Read, Write, BufReader};
+use std::io::{self, Read, Write, BufReader, BufRead, Lines};
 use ndarray::prelude::{
     Array2,
     Axis,
@@ -8,9 +8,9 @@ use ndarray::prelude::{
 use crate::deep_learning::layer::*;
 use crate::deep_learning::optimizer::*;
 use crate::deep_learning::common::*;
+use crate::deep_learning::*;
 
 // Affine
-const LAYER_LABEL: &str = "affine";
 pub struct Affine {
     x: Box<dyn NetworkLayer>,
     w: Box<dyn NetworkLayer>,
@@ -90,6 +90,24 @@ impl Affine {
     pub fn get_x(&self) -> &Box<dyn NetworkLayer> {&self.x}
     pub fn get_w(&self) -> &Box<dyn NetworkLayer> {&self.w}
     pub fn get_b(&self) -> &Box<dyn NetworkLayer> {&self.b}
+    pub fn layer_label() -> &'static str {
+        "affine"
+    }
+    pub fn import<T>(lines: &mut Lines<T>) -> Result<Self, Box<std::error::Error>>
+        where T: BufRead
+    {
+        println!("import {}", Self::layer_label());
+        let x = neural_network::import_network_layer(lines)?;
+        let w = neural_network::import_network_layer(lines)?;
+        let b = neural_network::import_network_layer(lines)?;
+
+        Ok(Affine {
+            x: x,
+            w: w,
+            b: b,
+            z: None,
+        })
+    }
 }
 impl NetworkLayer for Affine {
     fn forward(&mut self, is_learning: bool) -> Array2<f64> {
@@ -144,8 +162,9 @@ impl NetworkLayer for Affine {
             self.w.weight_sum() + 
             self.b.weight_sum();
     }
+    #[cfg (not (target_family = "wasm"))]
     fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
-        writeln!(file, "{}", LAYER_LABEL)?;
+        writeln!(file, "{}", Self::layer_label())?;
         file.flush()?;
         self.x.export(file)?;
         self.w.export(file)?;

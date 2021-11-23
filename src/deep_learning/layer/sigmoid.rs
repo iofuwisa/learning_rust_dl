@@ -1,15 +1,15 @@
 use std::fs::File;
-use std::io::{self, Read, Write, BufReader};
+use std::io::{self, Read, Write, BufReader, BufRead, Lines};
 use ndarray::prelude::{
     Array2,
 };
 use std::f64::consts::E;
 
+use crate::deep_learning::*;
 use crate::deep_learning::layer::*;
 
 // Sigmoid
 // y = 1 / (1 + exp(-x))
-const LAYER_LABEL: &str = "sigmoid";
 pub struct Sigmoid {
     x: Box<dyn NetworkLayer>,
     y: Option<Array2<f64>>,
@@ -23,6 +23,20 @@ impl Sigmoid {
         }
     }
     pub fn get_x(&self) -> &Box<dyn NetworkLayer> {&self.x}
+    pub fn layer_label() -> &'static str {
+        "sigmoid"
+    }
+    pub fn import<T>(lines: &mut Lines<T>) -> Result<Self, Box<std::error::Error>>
+        where T: BufRead
+    {
+        println!("import {}", Self::layer_label());
+        let x = neural_network::import_network_layer(lines)?;
+
+        Ok(Sigmoid {
+            x: x,
+            y: None,
+        })
+    }
 }
 impl NetworkLayer for Sigmoid {
     // f(x) =  1 / (1 + exp(-x))
@@ -78,7 +92,7 @@ impl NetworkLayer for Sigmoid {
         return self.x.weight_sum();
     }
     fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
-        writeln!(file, "{}", LAYER_LABEL)?;
+        writeln!(file, "{}", Self::layer_label())?;
         file.flush()?;
         self.x.export(file)?;
         Ok(())

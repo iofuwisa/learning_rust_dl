@@ -1,13 +1,13 @@
 use std::fs::File;
-use std::io::{self, Read, Write, BufReader};
+use std::io::{self, Read, Write, BufReader, BufRead, Lines};
 use ndarray::prelude::{
     Axis,
     Array2,
 };
 
+use crate::deep_learning::*;
 use crate::deep_learning::layer::*;
 
-const LAYER_LABEL: &str = "direct";
 pub struct DirectValue {
     value: Array2<f64>,
 }
@@ -19,6 +19,31 @@ impl DirectValue {
     }
     pub fn new_from_len(row_len: usize, col_len: usize) -> DirectValue {
         return DirectValue::new(Array2::<f64>::zeros((row_len, col_len)))
+    }
+    pub fn layer_label() -> &'static str {
+        "direct"
+    }
+    pub fn import<T>(lines: &mut Lines<T>) -> Result<Self, Box<std::error::Error>>
+        where T: BufRead
+    {
+        println!("import {}", Self::layer_label());
+        // value shape
+        let shape_line = lines.next().unwrap()?;
+        let mut shape_line_split = shape_line.split(',');
+        let dim: (usize, usize) = (shape_line_split.next().unwrap().parse::<usize>().unwrap(), shape_line_split.next().unwrap().parse::<usize>().unwrap());
+        // value
+        let mut value = Array2::<f64>::zeros(dim);
+        for row_i in 0..dim.0 {
+            let line = lines.next().unwrap()?;
+            let mut line_split = line.split(',');
+            for col_i in 0..dim.1 {
+                value[(row_i, col_i)] = line_split.next().unwrap().parse::<f64>().unwrap();
+            }
+        }
+
+        Ok(DirectValue {
+            value: value,
+        })
     }
 }
 impl NetworkLayer for DirectValue {
@@ -50,8 +75,9 @@ impl NetworkLayer for DirectValue {
         return 0f64;
     }
     fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
-        writeln!(file, "{}", LAYER_LABEL)?;
+        writeln!(file, "{}", Self::layer_label())?;
 
+        writeln!(file, "{},{}", self.value.shape()[0], self.value.shape()[1])?;
         for row in self.value.axis_iter(Axis(0)) {
             for v in row {
                 write!(file, "{},", v)?;

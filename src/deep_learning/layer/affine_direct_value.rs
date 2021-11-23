@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{self, Read, Write, BufReader};
+use std::io::{self, Read, Write, BufRead, BufReader, Lines};
 use ndarray::prelude::{
     Array2,
     Axis,
@@ -11,7 +11,6 @@ use crate::deep_learning::graph_plotter::*;
 
 
 // Affine value(weight and bias)
-const LAYER_LABEL: &str = "a_direct";
 pub struct AffineDirectValue {
     value: Array2<f64>,
     optimizer: Box<dyn Optimizer>,
@@ -48,6 +47,33 @@ impl AffineDirectValue {
     {
         return AffineDirectValue::new_with_name(Array2::<f64>::zeros((row_len, col_len)), optimizer, name);
     }
+    pub fn layer_label() -> &'static str {
+        "a_direct"
+    }
+    pub fn import<T>(lines: &mut Lines<T>) -> Result<Self, Box<std::error::Error>>
+        where T: BufRead
+    {
+        println!("import {}", Self::layer_label());
+        // value shape
+        let shape_line = lines.next().unwrap()?;
+        let mut shape_line_split = shape_line.split(',');
+        let dim: (usize, usize) = (shape_line_split.next().unwrap().parse::<usize>().unwrap(), shape_line_split.next().unwrap().parse::<usize>().unwrap());
+        // value
+        let mut value = Array2::<f64>::zeros(dim);
+        for row_i in 0..dim.0 {
+            let line = lines.next().unwrap()?;
+            let mut line_split = line.split(',');
+            for col_i in 0..dim.1 {
+                value[(row_i, col_i)] = line_split.next().unwrap().parse::<f64>().unwrap();
+            }
+        }
+
+        Ok(AffineDirectValue {
+            value: value,
+            optimizer: Box::new(Sgd::new(0.1)),
+            name: "".to_string(),
+        })
+    }
 }
 impl NetworkLayer for AffineDirectValue {
     fn forward(&mut self, _is_learning: bool) -> Array2<f64> {
@@ -82,9 +108,11 @@ impl NetworkLayer for AffineDirectValue {
     fn weight_sum(&self) -> f64 {
         panic!("AffineDirectValue::weight_sum is never weight_sum");
     }
+    #[cfg (not (target_family = "wasm"))]
     fn export(&self, file: &mut File) -> Result<(), Box<std::error::Error>> {
-        writeln!(file, "{}", LAYER_LABEL)?;
+        writeln!(file, "{}", Self::layer_label())?;
 
+        writeln!(file, "{},{}", self.value.shape()[0], self.value.shape()[1])?;
         for row in self.value.axis_iter(Axis(0)) {
             for v in row {
                 write!(file, "{},", v)?;

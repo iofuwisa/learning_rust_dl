@@ -1,8 +1,9 @@
 use std::fs::File;
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, Lines};
 use ndarray::prelude::{
     Axis,
     Array2,
+    arr2,
 };
 
 use crate::deep_learning::common::*;
@@ -51,8 +52,6 @@ impl NeuralNetwork {
     pub fn learn(&mut self, parameter: LearningParameter, resource: LearningResource) {
         let mut correct_rates = Vec::<f64>::with_capacity((parameter.iterations_num + 1) as usize);
         let mut losses = Vec::<f64>::with_capacity((parameter.iterations_num + 1) as usize);
-        let mut correct_rates_o = Vec::<f64>::with_capacity((parameter.iterations_num + 1) as usize);
-        let mut losses_o = Vec::<f64>::with_capacity((parameter.iterations_num + 1) as usize);
 
         println!("Start learning");
         let (loss, rate) = self.test(parameter.batch_size, &resource.tst_data, &resource.tst_lbl_onehot);
@@ -82,14 +81,9 @@ impl NeuralNetwork {
             let (loss, rate) = self.test(parameter.batch_size, &resource.tst_data, &resource.tst_lbl_onehot);
             correct_rates.push(rate);
             losses.push(loss);
-            let (loss, rate) = self.test(parameter.batch_size, &resource.trn_data, &resource.trn_lbl_onehot);
-            correct_rates_o.push(rate);
-            losses_o.push(loss);
         }
         plot_rate(correct_rates, "correct_rate");
         plot_loss(losses, "loss");
-        plot_rate(correct_rates_o, "correct_rate_o");
-        plot_loss(losses_o, "loss_o");
         self.last_layer.plot();
     }
 
@@ -127,6 +121,18 @@ impl NeuralNetwork {
         return (loss, correct_rate);
     }
 
+    pub fn import() -> Result<NeuralNetwork, Box<std::error::Error>> {
+        let file_path = "./nn.csv";
+        let file = File::open(file_path)?;
+        let mut lines = BufReader::new(file).lines();
+
+        let layer = import_network_layer(&mut lines)?;
+
+        Ok(NeuralNetwork {
+            last_layer: layer,
+        })
+    }
+
     pub fn export(&self) -> Result<(), Box<std::error::Error>> {
         let file_path = "./nn.csv";
         // let mut file = match File::open(file_path) {
@@ -140,6 +146,44 @@ impl NeuralNetwork {
         return Ok(())
     }
 } 
+
+pub fn import_network_layer<T>(lines: &mut Lines<T>) -> Result<Box<dyn NetworkLayer>, Box<std::error::Error>>
+    where T: BufRead
+{
+    // let layer_label = match(lines.next()) {
+    //     Some(line_res) => line_res?,
+    //     None => "".to_string(),
+    // };
+    let layer_label = lines.next().unwrap()?;
+
+    let layer: Box<dyn NetworkLayer> = 
+    if layer_label.as_str() == AffineDirectValue::layer_label() {
+        Box::new(AffineDirectValue::import(lines)?)
+    } else if layer_label.as_str() == Affine::layer_label() {
+        Box::new(Affine::import(lines)?)
+    } else if layer_label.as_str() == BatchNorm::layer_label() {
+        Box::new(BatchNorm::import(lines)?)
+    } else if layer_label.as_str() == Convolution::layer_label() {
+        Box::new(Convolution::import(lines)?)
+    } else if layer_label.as_str() == DirectValue::layer_label() {
+        Box::new(DirectValue::import(lines)?)
+    } else if layer_label.as_str() == Dropout::layer_label() {
+        Box::new(Dropout::import(lines)?)
+    } else if layer_label.as_str() == Pooling::layer_label() {
+        Box::new(Pooling::import(lines)?)
+    } else if layer_label.as_str() == Relu::layer_label() {
+        Box::new(Relu::import(lines)?)
+    } else if layer_label.as_str() == Sigmoid::layer_label() {
+        Box::new(Sigmoid::import(lines)?)
+    } else if layer_label.as_str() == SoftmaxWithLoss::layer_label() {
+        Box::new(SoftmaxWithLoss::import(lines)?)
+    } else {
+        panic!("No match layer label '{}'", layer_label.as_str());
+    };
+
+    // for l in lines {}
+    return Ok(layer);
+}
 
 fn calc_correct_rate(result: &Array2<f64>, lbl_onehot: &Array2<f64>) -> f64 {
     if result.shape() != lbl_onehot.shape() {
