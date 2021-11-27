@@ -9,6 +9,8 @@ use rand::{
     Rng,
 };
 
+use crate::deep_learning::statistics::*;
+
 // Numerical differentiation
 pub fn numeric_diff(func: Box<dyn Fn(f64) -> f64>, x: f64) -> f64 {
     let h = 0.0001;
@@ -165,7 +167,6 @@ mod test {
         assert_eq!(grad, arr1(&[0.0, 2.0, 4.0, 6.0, 8.0]));
     }
 
-    
     #[test]
     fn test_numeric_gradient2() {
         
@@ -198,6 +199,7 @@ mod test {
 
         }
     }
+
     #[test]
     fn test_random_choice() {
         let a = random_choice(1_000_000, 50);
@@ -208,5 +210,13 @@ mod test {
 
         let a = random_choice(50, 50);
         println!("{:?}", a);
+    }
+
+    #[test]
+    fn test_norm_random_vec() {
+        let v = norm_random_vec(500);
+        let (std_dev, _, mean) = standard_devication(&v);
+        assert_eq!(round_digit(std_dev, 0), 1f64);
+        assert_eq!(round_digit(mean, 0), 0f64);
     }
 }

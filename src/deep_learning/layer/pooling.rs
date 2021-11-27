@@ -140,11 +140,11 @@ impl NetworkLayer for Pooling {
         }
         let col_dx = col_dx;
 
-        let s = (batch_num*channel_num, 1, x_h, x_w);
-        let dx_4d = col2im(&col_dx, s, (0, 0, self.filter_h, self.filter_w), self.stride, self.padding);
+        let dx_4d = col2im(&col_dx, self.x_shape, (0, 0, self.filter_h, self.filter_w), self.stride, self.padding);
 
         let dx = dx_4d.to_shared().reshape((batch_num, channel_num*x_h*x_w)).to_owned();
 
+        // println!("max_idx: {:?}", col_max_index);
         // println!("dx: {:?}", dx);
         self.x.backward(dx);
     }

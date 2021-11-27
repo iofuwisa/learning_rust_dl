@@ -423,7 +423,7 @@ mod test {
             opt_b,  // optimizer_b
             1,      // batch_num
             3,      // channel_size
-            5,      // filter_num
+            20,     // filter_num
             3,      // filter_h
             3,      // filter_w
             28,     // img_h
@@ -438,16 +438,20 @@ mod test {
         let filter_value = filter.forward(true);
         let bias_value = bias.forward(true);
 
-        assert_eq!(filter_value.shape(), [5, 27]);
-        assert_eq!(bias_value.shape(), [5, 1]);
+        assert_eq!(filter_value.shape(), [20, 27]);
+        assert_eq!(bias_value.shape(), [20, 1]);
 
         let (filter_std_dev, _, filter_avg) = standard_devication(&filter_value.to_shared().reshape(filter_value.len()).to_vec());
         let (bias_std_dev, _, bias_avg) = standard_devication(&bias_value.to_shared().reshape(bias_value.len()).to_vec());
 
-        assert_eq!(round_digit(filter_avg, -1), 0f64);
-        assert_eq!(round_digit(filter_std_dev, -1), 1f64);
-        assert_eq!(round_digit(bias_avg, -1), 0f64);
-        assert_eq!(round_digit(bias_std_dev, -3), 0.01f64);
+        // println!("filter_avg: {}", filter_avg);
+        // println!("filter_std_dev: {}", filter_std_dev);
+        // println!("bias_avg: {}", bias_avg);
+        // println!("bias_std_dev: {}", bias_std_dev);
+        assert_eq!(round_digit(filter_avg, 0), 0f64);
+        assert_eq!(round_digit(filter_std_dev, 0), 1f64);
+        assert_eq!(round_digit(bias_avg, -2), 0f64);
+        assert_eq!(round_digit(bias_std_dev, -2), 0.01f64);
 
     }
 

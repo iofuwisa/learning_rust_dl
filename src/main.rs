@@ -12,7 +12,7 @@ const VAL_IMG_SIZE: usize = 1;
 const TST_IMG_SIZE: usize = 2000;
 
 // Hyper parameter
-const ITERS_NUM: u32 = 100;
+const ITERS_NUM: u32 = 5000;
 const MINIBATCH_SIZE: usize = 100;
 const CHANNEL_SIZE: usize = 1;
 const DROUPOUT_RATE: f64 = 0.15;
@@ -22,9 +22,9 @@ const MOMENTUM_FLICTION: f64 = 0.9;
 const RMSPROP_LEARNING_RATE: f64 = 0.1;
 const RMSPROP_FLICTION: f64 = 0.99;
 const ADAGRAD_LEARNING_RATE: f64 = 0.1;
-const ADAM_LEARNING_RATE: f64 = 0.1;
-const ADAM_FLICTION_M: f64 = 0.9;
-const ADAM_FLICTION_V: f64 = 0.9999;
+const ADAM_LEARNING_RATE: f64 = 0.01;
+const ADAM_FLICTION_M: f64 = 0.99;
+const ADAM_FLICTION_V: f64 = 0.99999;
 
 #[cfg (target_family = "wasm")]
 fn main(){
