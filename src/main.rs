@@ -1,10 +1,12 @@
 use deep_learning::mnist_images::*;
+use deep_learning::image::*;
 use deep_learning::deep_learning::neural_network::*;
 use deep_learning::deep_learning::layer::*;
 use deep_learning::deep_learning::optimizer::*;
 
 use ndarray::{
     Array2,
+    Axis,
 };
 
 const TRN_IMG_SIZE: usize = 5000;
@@ -57,6 +59,40 @@ fn lern_main() {
         tst_img.dim(),
         |(i,j)| if tst_img[(i,j)] > 0f64 {1f64} else {0f64}
     );
+
+    // Trim padding
+    println!("Trimming images");
+    let mut trimed_trn_img = trn_img.clone();
+    for mut img in trimed_trn_img.axis_iter_mut(Axis(0)) {
+        // Remove pad
+        let mut trans = TransImage::from_pixels(img.to_owned().to_shared().reshape((1, 28, 28)).into_owned());
+        trans.set_screen_pos_ignore_zero();
+        let transed_img = trans.sampling();
+
+        // Resize to original image size
+        let mut trans = TransImage::from_pixels(transed_img);
+        trans.resize_to(28, 28);
+        trans.set_screen_pos(((0, 0), (28, 28)));
+        let transed_img = trans.sampling();
+
+        img.assign(&transed_img.to_shared().reshape(28 * 28));
+    }
+
+    let mut trimed_tst_img = tst_img.clone();
+    for mut img in trimed_tst_img.axis_iter_mut(Axis(0)) {
+        // Remove pad
+        let mut trans = TransImage::from_pixels(img.to_owned().to_shared().reshape((1, 28, 28)).into_owned());
+        trans.set_screen_pos_ignore_zero();
+        let transed_img = trans.sampling();
+
+        // Resize to original image size
+        let mut trans = TransImage::from_pixels(transed_img);
+        trans.resize_to(28, 28);
+        trans.set_screen_pos(((0, 0), (28, 28)));
+        let transed_img = trans.sampling();
+
+        img.assign(&transed_img.to_shared().reshape(28 * 28));
+    }
 
     // Create NN from layers stack
     // Include loss layer
